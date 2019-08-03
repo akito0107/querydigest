@@ -3,15 +3,30 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:69c15f838084e9b84392267e8e8467f657b5ec78a1eb3882dd4a3d0b2a2b3f2f"
+  digest = "1:853d4fbbc84ddd482e0d9f76e2471453f432c078a2fa15f95527de7d2b1ebbe3"
   name = "github.com/akito0107/xsqlparser"
-  packages = ["sqlast"]
+  packages = [
+    ".",
+    "dialect",
+    "sqlast",
+  ]
   pruneopts = "UT"
-  revision = "c0abd6f922d62a8a679d957abb558f024b9b0217"
+  revision = "0c585cb45a8dc671af4b80f30c00228a6e629e7c"
+
+[[projects]]
+  branch = "master"
+  digest = "1:200b026ac664079d04cd6e22db1b613733d18f8c22e9705c0409ad39a6f7266e"
+  name = "golang.org/x/xerrors"
+  packages = [
+    ".",
+    "internal",
+  ]
+  pruneopts = "UT"
+  revision = "a985d3407aa71f30cf86696ee0a2f409709f22e1"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  input-imports = ["github.com/akito0107/xsqlparser/sqlast"]
+  input-imports = ["github.com/akito0107/xsqlparser"]
   solver-name = "gps-cdcl"
   solver-version = 1
