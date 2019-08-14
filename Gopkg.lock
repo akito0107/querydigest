@@ -2,8 +2,7 @@
 
 
 [[projects]]
-  branch = "master"
-  digest = "1:853d4fbbc84ddd482e0d9f76e2471453f432c078a2fa15f95527de7d2b1ebbe3"
+  digest = "1:5d73948f50d79f1c95047f615f9b4b40001f78afe66934b96819c95fbef09423"
   name = "github.com/akito0107/xsqlparser"
   packages = [
     ".",
@@ -11,11 +10,12 @@
     "sqlast",
   ]
   pruneopts = "UT"
-  revision = "0c585cb45a8dc671af4b80f30c00228a6e629e7c"
+  revision = "e90053cbc217b71d9aa3131229efd4f44cdd8b0f"
+  version = "v1.0.0-alpha.2"
 
 [[projects]]
   branch = "master"
-  digest = "1:200b026ac664079d04cd6e22db1b613733d18f8c22e9705c0409ad39a6f7266e"
+  digest = "1:7b5ce208ea2ca1f96322e6a5b616839fe49ea798648a013039f300475a1aadfc"
   name = "golang.org/x/xerrors"
   packages = [
     ".",
@@ -27,6 +27,9 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  input-imports = ["github.com/akito0107/xsqlparser"]
+  input-imports = [
+    "github.com/akito0107/xsqlparser",
+    "github.com/akito0107/xsqlparser/dialect",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1
