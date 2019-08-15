@@ -33,7 +33,6 @@ type queryTime struct {
 type SlowQueryInfo struct {
 	ParsedQuery string
 	RawQuery    string
-	Time        time.Time
 	QueryTime   *queryTime
 }
 
@@ -107,15 +106,8 @@ func (s *SlowQueryScanner) Next() bool {
 				return false
 			}
 		}
-
 		var slowquery SlowQueryInfo
 
-		// t, err := time.Parse("2006-01-02T15:04:05.000000Z", strings.TrimPrefix(s.line, "# Time: "))
-		// if err != nil {
-		// 	s.err = err
-		// 	return false
-		// }
-		// slowquery.Time = t
 		if err := s.nextLine(); err != nil {
 			s.err = err
 			return false
