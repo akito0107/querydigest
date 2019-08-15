@@ -60,7 +60,7 @@ func main() {
 }
 
 func parseSlowQuery(r io.Reader, concurrency int) error {
-	reader := bufio.NewReaderSize(r, 4096)
+	reader := bufio.NewReaderSize(r, 8192)
 
 	var slowqueries []SlowQueryInfo
 
@@ -143,10 +143,13 @@ PARSE_LOOP:
 				limit <- struct{}{}
 
 				res, err := replaceWithZeroValue(s.RawQuery)
+				if err != nil {
+					return nil
+				}
 				s.ParsedQuery = res
 				queue <- &s
 
-				return err
+				return nil
 			})
 		}(s)
 	}
@@ -183,7 +186,7 @@ PARSE_LOOP:
 	for _, s := range qs {
 		fmt.Println("------------------------------")
 		fmt.Printf("row: %s\n", s.rowSample)
-		fmt.Printf("query time: %f\n", s.totalTime)
+		fmt.Printf("query time: %f\ns", s.totalTime)
 		fmt.Printf("total query count: %d\n", s.totalQueryCount)
 		fmt.Println("------------------------------")
 	}
@@ -222,7 +225,7 @@ var supportedSQLs = []string{"SELECT", "INSERT", "ALTER", "WITH", "CREATE", "DEL
 
 func parsableQueryLine(str string) bool {
 	for _, s := range supportedSQLs {
-		if strings.HasPrefix(str, s) {
+		if strings.HasPrefix(strings.ToUpper(str), s) {
 			return true
 		}
 	}
@@ -268,6 +271,7 @@ func replaceWithZeroValue(src string) (string, error) {
 	}
 	stmt, err := parser.ParseStatement()
 	if err != nil {
+		log.Printf("Parse failed: invalied sql: %s \n", src)
 		return "", err
 	}
 
