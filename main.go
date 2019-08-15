@@ -181,9 +181,11 @@ PARSE_LOOP:
 	})
 
 	for _, s := range qs {
+		fmt.Println("------------------------------")
 		fmt.Printf("row: %s\n", s.rowSample)
 		fmt.Printf("query time: %f\n", s.totalTime)
 		fmt.Printf("total query count: %d\n", s.totalQueryCount)
+		fmt.Println("------------------------------")
 	}
 
 	return nil
