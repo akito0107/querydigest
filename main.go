@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/akito0107/xsqlparser"
 	"github.com/akito0107/xsqlparser/astutil"
@@ -59,150 +60,113 @@ func main() {
 	}
 }
 
-func parseRawFile(reader *bufio.Reader, parsequeue chan *SlowQueryInfo) {
-	bline, _, err := reader.ReadLine()
-	if err != nil {
+func parseRawFile(r io.Reader, parsequeue chan *SlowQueryInfo) {
+	slowqueryscanner := NewSlowQueryScanner(r)
+
+	for slowqueryscanner.Next() {
+		parsequeue <- slowqueryscanner.SlowQueryInfo()
+	}
+	if err := slowqueryscanner.Err(); err != nil {
 		log.Fatal(err)
 	}
-	line := string(bline)
 
-PARSE_LOOP:
+	close(parsequeue)
+}
+
+type SlowQueryScanner struct {
+	reader      *bufio.Reader
+	line        string
+	currentInfo *SlowQueryInfo
+	err         error
+}
+
+func NewSlowQueryScanner(r io.Reader) *SlowQueryScanner {
+	return &SlowQueryScanner{
+		reader: bufio.NewReaderSize(r, 1024*1024*16),
+	}
+}
+
+func (s *SlowQueryScanner) SlowQueryInfo() *SlowQueryInfo {
+	return s.currentInfo
+}
+
+func (s *SlowQueryScanner) Err() error {
+	return s.err
+}
+
+func (s *SlowQueryScanner) Next() bool {
+	if s.err != nil {
+		return false
+	}
 	for {
-		if !strings.HasPrefix(line, "# Time:") {
-			l, err := nextLine(reader)
-			if err == io.EOF {
-				break
+		for !strings.HasPrefix(s.line, "# Time:") {
+			if err := s.nextLine(); err == io.EOF {
+				return false
 			} else if err != nil {
-				log.Fatal(err)
+				s.err = err
+				return false
 			}
-			line = l
-			continue
 		}
 
-		strs := strings.Split(line, " ")
 		var slowquery SlowQueryInfo
 
-		t, err := time.Parse("2006-01-02T15:04:05.000000Z", strs[2])
-		if err != nil {
-			log.Fatal(err)
+		// t, err := time.Parse("2006-01-02T15:04:05.000000Z", strings.TrimPrefix(s.line, "# Time: "))
+		// if err != nil {
+		// 	s.err = err
+		// 	return false
+		// }
+		// slowquery.Time = t
+		if err := s.nextLine(); err != nil {
+			s.err = err
+			return false
 		}
-		slowquery.Time = t
-		nextLine(reader)
 
-		qt, err := nextLine(reader)
-		if err != nil {
-			log.Fatal(err)
+		if err := s.nextLine(); err != nil {
+			s.err = err
+			return false
 		}
-		slowquery.QueryTime = parseQueryTime(qt)
+
+		slowquery.QueryTime = parseQueryTime(s.line)
 
 		var query string
 		for {
-			l, err := nextLine(reader)
-			if err == io.EOF {
-				break PARSE_LOOP
+			if err := s.nextLine(); err == io.EOF {
+				return false
 			} else if err != nil {
-				log.Fatal(err)
+				s.err = err
+				return false
 			}
 
-			if parsableQueryLine(l) {
-				query = l
+			if parsableQueryLine(s.line) {
+				query = s.line
+				slowquery.RawQuery = query
+				s.currentInfo = &slowquery
+				return true
+			} else if strings.HasPrefix(s.line, "#") {
 				break
-			} else if strings.HasPrefix(l, "#") {
-				line = l
-				continue PARSE_LOOP
 			}
-		}
-
-		slowquery.RawQuery = query
-		parsequeue <- &slowquery
-
-		line, err = nextLine(reader)
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			log.Fatal(err)
 		}
 	}
-	close(parsequeue)
+}
 
+func b2s(b []byte) string {
+	return *(*string)(unsafe.Pointer(&b))
+}
+
+func (s *SlowQueryScanner) nextLine() error {
+	l, _, err := s.reader.ReadLine()
+	if err != nil {
+		return err
+	}
+	s.line = string(l)
+
+	return nil
 }
 
 func parseSlowQuery(r io.Reader, concurrency int) error {
-	reader := bufio.NewReaderSize(r, 1024*1024*8)
 	parsequeue := make(chan *SlowQueryInfo, 500)
 
-	go parseRawFile(reader, parsequeue)
-
-	/*
-		go func() {
-			bline, _, err := reader.ReadLine()
-			if err != nil {
-				log.Fatal(err)
-			}
-			line := string(bline)
-
-		PARSE_LOOP:
-			for {
-				if !strings.HasPrefix(line, "# Time:") {
-					l, err := nextLine(reader)
-					if err == io.EOF {
-						break
-					} else if err != nil {
-						log.Fatal(err)
-					}
-					line = l
-					continue
-				}
-
-				strs := strings.Split(line, " ")
-				var slowquery SlowQueryInfo
-
-				t, err := time.Parse("2006-01-02T15:04:05.000000Z", strs[2])
-				if err != nil {
-					log.Fatal(err)
-				}
-				slowquery.Time = t
-				nextLine(reader)
-
-				qt, err := nextLine(reader)
-				if err != nil {
-					log.Fatal(err)
-				}
-				slowquery.QueryTime = parseQueryTime(qt)
-
-				var query string
-				for {
-					l, err := nextLine(reader)
-					if err == io.EOF {
-						break PARSE_LOOP
-					} else if err != nil {
-						log.Fatal(err)
-					}
-
-					if parsableQueryLine(l) {
-						query = l
-						break
-					} else if strings.HasPrefix(l, "#") {
-						line = l
-						continue PARSE_LOOP
-					}
-				}
-
-				slowquery.RawQuery = query
-				parsequeue <- &slowquery
-				// slowqueries = append(slowqueries, slowquery)
-
-				line, err = nextLine(reader)
-				if err == io.EOF {
-					break
-				} else if err != nil {
-					log.Fatal(err)
-				}
-			}
-			close(parsequeue)
-			log.Println("split done")
-		}()
-	*/
+	go parseRawFile(r, parsequeue)
 
 	summ := NewSummarizer()
 
@@ -287,20 +251,15 @@ func (s *slowQuerySummary) appendQueryTime(q *queryTime) {
 	s.totalQueryCount += 1
 }
 
-func nextLine(reader *bufio.Reader) (string, error) {
-	l, _, err := reader.ReadLine()
-	if err != nil {
-		return "", err
-	}
-
-	return string(l), nil
-}
-
 var supportedSQLs = []string{"SELECT", "INSERT", "ALTER", "WITH", "CREATE", "DELETE", "UPDATE"}
 
 func parsableQueryLine(str string) bool {
+	if len(str) > 8 {
+		str = str[:8]
+	}
+	str = strings.ToUpper(str)
 	for _, s := range supportedSQLs {
-		if strings.HasPrefix(strings.ToUpper(str), s) {
+		if strings.HasPrefix(str, s) {
 			return true
 		}
 	}
@@ -310,7 +269,7 @@ func parsableQueryLine(str string) bool {
 
 func parseQueryTime(str string) *queryTime {
 
-	queryTimes := strings.Split(str, " ")
+	queryTimes := strings.SplitN(str, " ", 12)
 	// Query_time
 	qt, err := strconv.ParseFloat(queryTimes[2], 64)
 	if err != nil {
