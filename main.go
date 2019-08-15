@@ -12,7 +12,9 @@ import (
 	"time"
 
 	"github.com/akito0107/xsqlparser"
+	"github.com/akito0107/xsqlparser/astutil"
 	"github.com/akito0107/xsqlparser/dialect"
+	"github.com/akito0107/xsqlparser/sqlast"
 )
 
 type queryTime struct {
@@ -110,13 +112,16 @@ PARSE_LOOP:
 	log.Println("split done")
 
 	var wg sync.WaitGroup
-	limit := make(chan struct{}, 6)
+	limit := make(chan struct{}, 1)
 
 	log.Println(len(slowqueries))
 	for _, s := range slowqueries {
 		wg.Add(1)
 		go func(s SlowQueryInfo) {
 			defer func() {
+				if e := recover(); e != nil {
+					log.Fatal(e)
+				}
 				<-limit
 				wg.Done()
 			}()
@@ -129,7 +134,28 @@ PARSE_LOOP:
 			if err != nil {
 				log.Println(err)
 			}
-			log.Println(stmt.ToSQLString())
+
+			log.Println(s.RawQuery)
+			res := astutil.Apply(stmt, func(cursor *astutil.Cursor) bool {
+				switch cursor.Node().(type) {
+				case *sqlast.LongValue:
+					cursor.Replace(sqlast.NewLongValue(0))
+				case *sqlast.DoubleValue:
+					cursor.Replace(sqlast.NewDoubleValue(0))
+				case *sqlast.BooleanValue:
+					cursor.Replace(sqlast.NewBooleanValue(true))
+				case *sqlast.SingleQuotedString:
+					cursor.Replace(sqlast.NewSingleQuotedString(""))
+				case *sqlast.TimestampValue:
+					cursor.Replace(sqlast.NewTimestampValue(time.Date(1970, 1, 1, 0, 0, 0, 0, nil)))
+				case *sqlast.TimeValue:
+					cursor.Replace(sqlast.NewTimeValue(time.Date(1970, 1, 1, 0, 0, 0, 0, nil)))
+				case *sqlast.DateTimeValue:
+					cursor.Replace(sqlast.NewDateTimeValue(time.Date(1970, 1, 1, 0, 0, 0, 0, nil)))
+				}
+				return true
+			}, nil)
+			log.Println(res.ToSQLString())
 		}(s)
 	}
 

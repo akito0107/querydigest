@@ -2,16 +2,17 @@
 
 
 [[projects]]
-  digest = "1:5d73948f50d79f1c95047f615f9b4b40001f78afe66934b96819c95fbef09423"
+  digest = "1:3b2847f743a86c7f905565758facc82dbf9a9f229cd65674ed2d62339563b8a5"
   name = "github.com/akito0107/xsqlparser"
   packages = [
     ".",
+    "astutil",
     "dialect",
     "sqlast",
   ]
   pruneopts = "UT"
-  revision = "e90053cbc217b71d9aa3131229efd4f44cdd8b0f"
-  version = "v1.0.0-alpha.2"
+  revision = "da1376272c5a924a43b8c6e110a1e092408c35b5"
+  version = "v1.0.0-alpha.4"
 
 [[projects]]
   branch = "master"
@@ -29,7 +30,9 @@
   analyzer-version = 1
   input-imports = [
     "github.com/akito0107/xsqlparser",
+    "github.com/akito0107/xsqlparser/astutil",
     "github.com/akito0107/xsqlparser/dialect",
+    "github.com/akito0107/xsqlparser/sqlast",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
