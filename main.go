@@ -12,15 +12,14 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
-
-	"github.com/pkg/profile"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/akito0107/xsqlparser"
 	"github.com/akito0107/xsqlparser/astutil"
 	"github.com/akito0107/xsqlparser/dialect"
 	"github.com/akito0107/xsqlparser/sqlast"
+	"github.com/pkg/profile"
 )
 
 type queryTime struct {
@@ -41,7 +40,8 @@ var slowLogPath = flag.String("f", "slow.log", "slow log filepath (default slow.
 var concurrency = flag.Int("j", 0, "concurrency (default = num of cpus)")
 
 func main() {
-	defer profile.Start(profile.ProfilePath("."), profile.MemProfile).Stop()
+	// defer profile.Start(profile.ProfilePath("."), profile.TraceProfile).Stop()
+	defer profile.Start(profile.ProfilePath("."), profile.CPUProfile).Stop()
 	flag.Parse()
 
 	f, err := os.Open(*slowLogPath)
@@ -59,16 +59,13 @@ func main() {
 	}
 }
 
-func parseSlowQuery(r io.Reader, concurrency int) error {
-	reader := bufio.NewReaderSize(r, 8192)
-
-	var slowqueries []SlowQueryInfo
-
+func parseRawFile(reader *bufio.Reader, parsequeue chan *SlowQueryInfo) {
 	bline, _, err := reader.ReadLine()
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 	line := string(bline)
+
 PARSE_LOOP:
 	for {
 		if !strings.HasPrefix(line, "# Time:") {
@@ -76,7 +73,7 @@ PARSE_LOOP:
 			if err == io.EOF {
 				break
 			} else if err != nil {
-				return err
+				log.Fatal(err)
 			}
 			line = l
 			continue
@@ -87,14 +84,14 @@ PARSE_LOOP:
 
 		t, err := time.Parse("2006-01-02T15:04:05.000000Z", strs[2])
 		if err != nil {
-			return err
+			log.Fatal(err)
 		}
 		slowquery.Time = t
 		nextLine(reader)
 
 		qt, err := nextLine(reader)
 		if err != nil {
-			return err
+			log.Fatal(err)
 		}
 		slowquery.QueryTime = parseQueryTime(qt)
 
@@ -104,7 +101,7 @@ PARSE_LOOP:
 			if err == io.EOF {
 				break PARSE_LOOP
 			} else if err != nil {
-				return err
+				log.Fatal(err)
 			}
 
 			if parsableQueryLine(l) {
@@ -117,65 +114,119 @@ PARSE_LOOP:
 		}
 
 		slowquery.RawQuery = query
-		slowqueries = append(slowqueries, slowquery)
+		parsequeue <- &slowquery
 
 		line, err = nextLine(reader)
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			return err
-		}
-	}
-
-	log.Println("split done")
-
-	limit := make(chan struct{}, concurrency)
-	queue := make(chan *SlowQueryInfo, 1)
-
-	var g errgroup.Group
-	log.Println(len(slowqueries))
-	for _, s := range slowqueries {
-		func(s SlowQueryInfo) {
-			g.Go(func() error {
-				defer func() {
-					<-limit
-				}()
-				limit <- struct{}{}
-
-				res, err := replaceWithZeroValue(s.RawQuery)
-				if err != nil {
-					return nil
-				}
-				s.ParsedQuery = res
-				queue <- &s
-
-				return nil
-			})
-		}(s)
-	}
-
-	go func() {
-		if err := g.Wait(); err != nil {
 			log.Fatal(err)
 		}
-		close(queue)
-	}()
-
-	sqmap := make(map[string]*slowQuerySummary)
-	for s := range queue {
-		summary, ok := sqmap[s.ParsedQuery]
-		if !ok {
-			summary = &slowQuerySummary{
-				rowSample: s.RawQuery,
-			}
-		}
-		summary.appendQueryTime(s.QueryTime)
-		sqmap[s.ParsedQuery] = summary
 	}
+	close(parsequeue)
+
+}
+
+func parseSlowQuery(r io.Reader, concurrency int) error {
+	reader := bufio.NewReaderSize(r, 1024*1024*8)
+	parsequeue := make(chan *SlowQueryInfo, 500)
+
+	go parseRawFile(reader, parsequeue)
+
+	/*
+		go func() {
+			bline, _, err := reader.ReadLine()
+			if err != nil {
+				log.Fatal(err)
+			}
+			line := string(bline)
+
+		PARSE_LOOP:
+			for {
+				if !strings.HasPrefix(line, "# Time:") {
+					l, err := nextLine(reader)
+					if err == io.EOF {
+						break
+					} else if err != nil {
+						log.Fatal(err)
+					}
+					line = l
+					continue
+				}
+
+				strs := strings.Split(line, " ")
+				var slowquery SlowQueryInfo
+
+				t, err := time.Parse("2006-01-02T15:04:05.000000Z", strs[2])
+				if err != nil {
+					log.Fatal(err)
+				}
+				slowquery.Time = t
+				nextLine(reader)
+
+				qt, err := nextLine(reader)
+				if err != nil {
+					log.Fatal(err)
+				}
+				slowquery.QueryTime = parseQueryTime(qt)
+
+				var query string
+				for {
+					l, err := nextLine(reader)
+					if err == io.EOF {
+						break PARSE_LOOP
+					} else if err != nil {
+						log.Fatal(err)
+					}
+
+					if parsableQueryLine(l) {
+						query = l
+						break
+					} else if strings.HasPrefix(l, "#") {
+						line = l
+						continue PARSE_LOOP
+					}
+				}
+
+				slowquery.RawQuery = query
+				parsequeue <- &slowquery
+				// slowqueries = append(slowqueries, slowquery)
+
+				line, err = nextLine(reader)
+				if err == io.EOF {
+					break
+				} else if err != nil {
+					log.Fatal(err)
+				}
+			}
+			close(parsequeue)
+			log.Println("split done")
+		}()
+	*/
+
+	summ := NewSummarizer()
+
+	var wg sync.WaitGroup
+	for i := 0; i < concurrency; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for s := range parsequeue {
+				res, err := replaceWithZeroValue(s.RawQuery)
+				if err != nil {
+					continue
+				}
+				s.ParsedQuery = res
+
+				summ.collect(s)
+			}
+		}()
+	}
+	wg.Wait()
 
 	var qs []*slowQuerySummary
 
-	for _, v := range sqmap {
+	for _, v := range summ.m {
 		qs = append(qs, v)
 	}
 
@@ -192,6 +243,30 @@ PARSE_LOOP:
 	}
 
 	return nil
+}
+
+type summarizer struct {
+	m  map[string]*slowQuerySummary
+	mu sync.Mutex
+}
+
+func NewSummarizer() *summarizer {
+	return &summarizer{
+		m: make(map[string]*slowQuerySummary),
+	}
+}
+
+func (s *summarizer) collect(i *SlowQueryInfo) {
+	s.mu.Lock()
+	summary, ok := s.m[i.ParsedQuery]
+	if !ok {
+		summary = &slowQuerySummary{
+			rowSample: i.RawQuery,
+		}
+	}
+	summary.appendQueryTime(i.QueryTime)
+	s.m[i.ParsedQuery] = summary
+	s.mu.Unlock()
 }
 
 type slowQuerySummary struct {
