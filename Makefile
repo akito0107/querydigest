@@ -2,7 +2,7 @@
 build: bin/querydigest
 
 .PHONY: bin/astprinter
-bin/querydigest: vendor
+bin/querydigest: vendor main.go
 	go build -o bin/querydigest main.go
 
 # .PHONY: generate

@@ -3,13 +3,19 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"flag"
+	"fmt"
 	"io"
 	"log"
 	"os"
+	"runtime"
+	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
+
+	"github.com/pkg/profile"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/akito0107/xsqlparser"
 	"github.com/akito0107/xsqlparser/astutil"
@@ -25,23 +31,35 @@ type queryTime struct {
 }
 
 type SlowQueryInfo struct {
-	RawQuery  string
-	Time      time.Time
-	QueryTime *queryTime
+	ParsedQuery string
+	RawQuery    string
+	Time        time.Time
+	QueryTime   *queryTime
 }
 
+var slowLogPath = flag.String("f", "slow.log", "slow log filepath (default slow.log)")
+var concurrency = flag.Int("j", 0, "concurrency (default = num of cpus)")
+
 func main() {
-	f, err := os.Open("./slow.log")
+	defer profile.Start(profile.ProfilePath("."), profile.MemProfile).Stop()
+	flag.Parse()
+
+	f, err := os.Open(*slowLogPath)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer f.Close()
-	if err := parseSlowQuery(f); err != nil {
+
+	if *concurrency == 0 {
+		*concurrency = runtime.NumCPU()
+	}
+
+	if err := parseSlowQuery(f, *concurrency); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func parseSlowQuery(r io.Reader) error {
+func parseSlowQuery(r io.Reader, concurrency int) error {
 	reader := bufio.NewReaderSize(r, 4096)
 
 	var slowqueries []SlowQueryInfo
@@ -111,59 +129,82 @@ PARSE_LOOP:
 
 	log.Println("split done")
 
-	var wg sync.WaitGroup
-	limit := make(chan struct{}, 1)
+	limit := make(chan struct{}, concurrency)
+	queue := make(chan *SlowQueryInfo, 1)
 
+	var g errgroup.Group
 	log.Println(len(slowqueries))
 	for _, s := range slowqueries {
-		wg.Add(1)
-		go func(s SlowQueryInfo) {
-			defer func() {
-				if e := recover(); e != nil {
-					log.Fatal(e)
-				}
-				<-limit
-				wg.Done()
-			}()
-			limit <- struct{}{}
-			parser, err := xsqlparser.NewParser(bytes.NewBufferString(s.RawQuery), &dialect.GenericSQLDialect{})
-			if err != nil {
-				log.Println(err)
-			}
-			stmt, err := parser.ParseStatement()
-			if err != nil {
-				log.Println(err)
-			}
+		func(s SlowQueryInfo) {
+			g.Go(func() error {
+				defer func() {
+					<-limit
+				}()
+				limit <- struct{}{}
 
-			log.Println(s.RawQuery)
-			res := astutil.Apply(stmt, func(cursor *astutil.Cursor) bool {
-				switch cursor.Node().(type) {
-				case *sqlast.LongValue:
-					cursor.Replace(sqlast.NewLongValue(0))
-				case *sqlast.DoubleValue:
-					cursor.Replace(sqlast.NewDoubleValue(0))
-				case *sqlast.BooleanValue:
-					cursor.Replace(sqlast.NewBooleanValue(true))
-				case *sqlast.SingleQuotedString:
-					cursor.Replace(sqlast.NewSingleQuotedString(""))
-				case *sqlast.TimestampValue:
-					cursor.Replace(sqlast.NewTimestampValue(time.Date(1970, 1, 1, 0, 0, 0, 0, nil)))
-				case *sqlast.TimeValue:
-					cursor.Replace(sqlast.NewTimeValue(time.Date(1970, 1, 1, 0, 0, 0, 0, nil)))
-				case *sqlast.DateTimeValue:
-					cursor.Replace(sqlast.NewDateTimeValue(time.Date(1970, 1, 1, 0, 0, 0, 0, nil)))
-				}
-				return true
-			}, nil)
-			log.Println(res.ToSQLString())
+				res, err := replaceWithZeroValue(s.RawQuery)
+				s.ParsedQuery = res
+				queue <- &s
+
+				return err
+			})
 		}(s)
 	}
 
-	wg.Wait()
+	go func() {
+		if err := g.Wait(); err != nil {
+			log.Fatal(err)
+		}
+		close(queue)
+	}()
 
-	log.Println("parse done")
+	sqmap := make(map[string]*slowQuerySummary)
+	for s := range queue {
+		summary, ok := sqmap[s.ParsedQuery]
+		if !ok {
+			summary = &slowQuerySummary{
+				rowSample: s.RawQuery,
+			}
+		}
+		summary.appendQueryTime(s.QueryTime)
+		sqmap[s.ParsedQuery] = summary
+	}
+
+	var qs []*slowQuerySummary
+
+	for _, v := range sqmap {
+		qs = append(qs, v)
+	}
+
+	sort.Slice(qs, func(i, j int) bool {
+		return qs[i].totalTime > qs[j].totalTime
+	})
+
+	for _, s := range qs {
+		fmt.Printf("row: %s\n", s.rowSample)
+		fmt.Printf("query time: %f\n", s.totalTime)
+		fmt.Printf("total query count: %d\n", s.totalQueryCount)
+	}
 
 	return nil
+}
+
+type slowQuerySummary struct {
+	rowSample         string
+	totalTime         float64
+	totalLockTime     float64
+	totalQueryCount   int
+	totalRowsSent     int
+	totalRowsExamined int
+}
+
+func (s *slowQuerySummary) appendQueryTime(q *queryTime) {
+	s.totalLockTime += q.LockTime
+	s.totalTime += q.QueryTime
+	s.totalRowsSent += q.RowsSent
+	s.totalRowsExamined += q.RowsExamined
+
+	s.totalQueryCount += 1
 }
 
 func nextLine(reader *bufio.Reader) (string, error) {
@@ -216,4 +257,37 @@ func parseQueryTime(str string) *queryTime {
 		RowsSent:     int(rs),
 		RowsExamined: int(re),
 	}
+}
+
+func replaceWithZeroValue(src string) (string, error) {
+	parser, err := xsqlparser.NewParser(bytes.NewBufferString(src), &dialect.GenericSQLDialect{})
+	if err != nil {
+		return "", err
+	}
+	stmt, err := parser.ParseStatement()
+	if err != nil {
+		return "", err
+	}
+
+	res := astutil.Apply(stmt, func(cursor *astutil.Cursor) bool {
+		switch cursor.Node().(type) {
+		case *sqlast.LongValue:
+			cursor.Replace(sqlast.NewLongValue(0))
+		case *sqlast.DoubleValue:
+			cursor.Replace(sqlast.NewDoubleValue(0))
+		case *sqlast.BooleanValue:
+			cursor.Replace(sqlast.NewBooleanValue(true))
+		case *sqlast.SingleQuotedString:
+			cursor.Replace(sqlast.NewSingleQuotedString(""))
+		case *sqlast.TimestampValue:
+			cursor.Replace(sqlast.NewTimestampValue(time.Date(1970, 1, 1, 0, 0, 0, 0, nil)))
+		case *sqlast.TimeValue:
+			cursor.Replace(sqlast.NewTimeValue(time.Date(1970, 1, 1, 0, 0, 0, 0, nil)))
+		case *sqlast.DateTimeValue:
+			cursor.Replace(sqlast.NewDateTimeValue(time.Date(1970, 1, 1, 0, 0, 0, 0, nil)))
+		}
+		return true
+	}, nil)
+
+	return res.ToSQLString(), nil
 }
