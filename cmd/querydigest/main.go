@@ -13,7 +13,8 @@ import (
 	"github.com/akito0107/querydigest"
 )
 
-var slowLogPath = flag.String("f", "slow.log", "slow log filepath (default slow.log)")
+var slowLogPath = flag.String("f", "slow.log", "slow log filepath")
+var previewSize = flag.Int("n", 0, "count")
 var concurrency = flag.Int("j", 0, "concurrency (default = num of cpus)")
 
 func main() {
@@ -31,17 +32,33 @@ func main() {
 		*concurrency = runtime.NumCPU()
 	}
 
-	if err := parseSlowQuery(f, *concurrency); err != nil {
+	results, err := analyzeSlowQuery(f, *concurrency)
+	if err != nil {
 		log.Fatal(err)
+	}
+
+	if *previewSize != 0 && *previewSize <= len(results) {
+		results = results[0:*previewSize]
+	}
+
+	print(os.Stdout, results)
+}
+
+func print(w io.Writer, summaries []*querydigest.SlowQuerySummary) {
+	for i, s := range summaries {
+		fmt.Fprintln(w)
+		fmt.Fprintf(w, "Query %d\n", i)
+		fmt.Fprintf(w, "%s\n", s.String())
+		fmt.Println()
 	}
 }
 
-func parseSlowQuery(r io.Reader, concurrency int) error {
+func analyzeSlowQuery(r io.Reader, concurrency int) ([]*querydigest.SlowQuerySummary, error) {
 	parsequeue := make(chan *querydigest.SlowQueryInfo, 500)
 
 	go parseRawFile(r, parsequeue)
 
-	summ := querydigest.NewSummarizer()
+	summarizer := querydigest.NewSummarizer()
 
 	var wg sync.WaitGroup
 	for i := 0; i < concurrency; i++ {
@@ -55,7 +72,7 @@ func parseSlowQuery(r io.Reader, concurrency int) error {
 				}
 				s.ParsedQuery = res
 
-				summ.Collect(s)
+				summarizer.Collect(s)
 			}
 		}()
 	}
@@ -63,7 +80,7 @@ func parseSlowQuery(r io.Reader, concurrency int) error {
 
 	var qs []*querydigest.SlowQuerySummary
 
-	for _, v := range summ.Map() {
+	for _, v := range summarizer.Map() {
 		qs = append(qs, v)
 	}
 
@@ -71,16 +88,7 @@ func parseSlowQuery(r io.Reader, concurrency int) error {
 		return qs[i].TotalTime > qs[j].TotalTime
 	})
 
-	for _, s := range qs {
-		fmt.Println("------------------------------")
-		fmt.Printf("row: %s\n", s.RowSample)
-		fmt.Printf("query time: %f\n", s.TotalTime)
-		fmt.Printf("total query count: %d\n", s.TotalQueryCount)
-		fmt.Printf("histogram: %v\n", querydigest.QueryTimeHistogram(s))
-		fmt.Println("------------------------------")
-	}
-
-	return nil
+	return qs, nil
 }
 
 func parseRawFile(r io.Reader, parsequeue chan *querydigest.SlowQueryInfo) {
