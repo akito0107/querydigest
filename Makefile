@@ -1,7 +1,7 @@
 .PHONY: build
 build: bin/querydigest
 
-.PHONY: bin/astprinter
+.PHONY: bin/querydigest
 bin/querydigest:
 	go build -o bin/querydigest cmd/querydigest/main.go
 
