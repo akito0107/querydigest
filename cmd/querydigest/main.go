@@ -32,7 +32,7 @@ func main() {
 		*concurrency = runtime.NumCPU()
 	}
 
-	results, err := analyzeSlowQuery(f, *concurrency)
+	results, total, err := analyzeSlowQuery(f, *concurrency)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -41,19 +41,22 @@ func main() {
 		results = results[0:*previewSize]
 	}
 
-	print(os.Stdout, results)
+	print(os.Stdout, results, total)
 }
 
-func print(w io.Writer, summaries []*querydigest.SlowQuerySummary) {
+func print(w io.Writer, summaries []*querydigest.SlowQuerySummary, totalTime float64) {
 	for i, s := range summaries {
+		s.ComputeHistogram()
+		s.ComputeStats()
 		fmt.Fprintln(w)
 		fmt.Fprintf(w, "Query %d\n", i)
-		fmt.Fprintf(w, "%s\n", s.String())
+		fmt.Fprintf(w, "%f%%\n", (s.TotalTime/totalTime)*100)
+		fmt.Fprintf(w, "%s", s.String())
 		fmt.Println()
 	}
 }
 
-func analyzeSlowQuery(r io.Reader, concurrency int) ([]*querydigest.SlowQuerySummary, error) {
+func analyzeSlowQuery(r io.Reader, concurrency int) ([]*querydigest.SlowQuerySummary, float64, error) {
 	parsequeue := make(chan *querydigest.SlowQueryInfo, 500)
 
 	go parseRawFile(r, parsequeue)
@@ -88,7 +91,7 @@ func analyzeSlowQuery(r io.Reader, concurrency int) ([]*querydigest.SlowQuerySum
 		return qs[i].TotalTime > qs[j].TotalTime
 	})
 
-	return qs, nil
+	return qs, summarizer.TotalQueryTime(), nil
 }
 
 func parseRawFile(r io.Reader, parsequeue chan *querydigest.SlowQueryInfo) {
