@@ -2,15 +2,11 @@
 build: bin/querydigest
 
 .PHONY: bin/astprinter
-bin/querydigest: vendor main.go
-	go build -o bin/querydigest main.go
+bin/querydigest:
+	go build -o bin/querydigest cmd/querydigest/main.go
 
 # .PHONY: generate
 # generate:
-# 	go generate ./...
- 
-vendor: Gopkg.toml Gopkg.lock
-	dep ensure
 
 .PHONY: test
 test: vendor
