@@ -27,7 +27,7 @@ func (s *Summarizer) Collect(i *SlowQueryInfo) {
 			RowSample: i.RawQuery,
 		}
 	}
-	summary.appendQueryTime(i.QueryTime)
+	summary.appendQueryTime(i)
 	s.m[i.ParsedQuery] = summary
 	s.mu.Unlock()
 }
@@ -39,13 +39,15 @@ type SlowQuerySummary struct {
 	TotalQueryCount   int
 	TotalRowsSent     int
 	TotalRowsExamined int
+	RawInfo           []*SlowQueryInfo
 }
 
-func (s *SlowQuerySummary) appendQueryTime(q *QueryTime) {
-	s.TotalLockTime += q.LockTime
-	s.TotalTime += q.QueryTime
-	s.TotalRowsSent += q.RowsSent
-	s.TotalRowsExamined += q.RowsExamined
+func (s *SlowQuerySummary) appendQueryTime(info *SlowQueryInfo) {
+	s.TotalLockTime += info.QueryTime.LockTime
+	s.TotalTime += info.QueryTime.QueryTime
+	s.TotalRowsSent += info.QueryTime.RowsSent
+	s.TotalRowsExamined += info.QueryTime.RowsExamined
+	s.RawInfo = append(s.RawInfo, info)
 
 	s.TotalQueryCount += 1
 }

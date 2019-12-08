@@ -74,8 +74,9 @@ func parseSlowQuery(r io.Reader, concurrency int) error {
 	for _, s := range qs {
 		fmt.Println("------------------------------")
 		fmt.Printf("row: %s\n", s.RowSample)
-		fmt.Printf("query time: %f\ns", s.TotalTime)
+		fmt.Printf("query time: %f\n", s.TotalTime)
 		fmt.Printf("total query count: %d\n", s.TotalQueryCount)
+		fmt.Printf("histogram: %v\n", querydigest.QueryTimeHistogram(s))
 		fmt.Println("------------------------------")
 	}
 
