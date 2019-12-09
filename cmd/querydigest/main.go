@@ -50,7 +50,7 @@ func print(w io.Writer, summaries []*querydigest.SlowQuerySummary, totalTime flo
 		s.ComputeStats()
 		fmt.Fprintln(w)
 		fmt.Fprintf(w, "Query %d\n", i)
-		fmt.Fprintf(w, "%f%%\n", (s.TotalTime/totalTime)*100)
+		fmt.Fprintf(w, "%f%%\n\n", (s.TotalTime/totalTime)*100)
 		fmt.Fprintf(w, "%s", s.String())
 		fmt.Println()
 	}
