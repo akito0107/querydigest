@@ -1,6 +1,7 @@
 package querydigest
 
 import (
+	"sort"
 	"sync"
 )
 
@@ -36,4 +37,19 @@ func (s *Summarizer) Collect(i *SlowQueryInfo) {
 	s.m[i.ParsedQuery] = summary
 	s.totalTime += i.QueryTime.QueryTime
 	s.mu.Unlock()
+}
+
+func (s *Summarizer) Summarize() []*SlowQuerySummary {
+	qs := make([]*SlowQuerySummary, 0, len(s.m))
+	for _, v := range s.m {
+		v.ComputeHistogram()
+		v.ComputeStats()
+		qs = append(qs, v)
+	}
+
+	sort.Slice(qs, func(i, j int) bool {
+		return qs[i].TotalTime > qs[j].TotalTime
+	})
+
+	return qs
 }

@@ -2,6 +2,7 @@ package querydigest
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 
@@ -170,6 +171,10 @@ func (s *slowQueryStats) String() string {
 type seconds float64
 
 func (r seconds) String() string {
+	if math.IsNaN(float64(r)) || math.IsInf(float64(r), 0) {
+		return "-"
+	}
+
 	nano := r * 1000 * 1000
 	if nano < 1000 {
 		return fmt.Sprintf("%.0fus", nano)
@@ -194,6 +199,9 @@ type slowQueryStatSeconds struct {
 type count float64
 
 func (c count) String() string {
+	if math.IsNaN(float64(c)) || math.IsInf(float64(c), 0) {
+		return "-"
+	}
 	return fmt.Sprintf("%.2f", c)
 }
 

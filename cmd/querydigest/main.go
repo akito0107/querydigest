@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"runtime"
-	"sort"
 	"sync"
 
 	"github.com/akito0107/querydigest"
@@ -46,13 +45,11 @@ func main() {
 
 func print(w io.Writer, summaries []*querydigest.SlowQuerySummary, totalTime float64) {
 	for i, s := range summaries {
-		s.ComputeHistogram()
-		s.ComputeStats()
 		fmt.Fprintln(w)
 		fmt.Fprintf(w, "Query %d\n", i)
 		fmt.Fprintf(w, "%f%%\n\n", (s.TotalTime/totalTime)*100)
 		fmt.Fprintf(w, "%s", s.String())
-		fmt.Println()
+		fmt.Fprintln(w)
 	}
 }
 
@@ -81,15 +78,7 @@ func analyzeSlowQuery(r io.Reader, concurrency int) ([]*querydigest.SlowQuerySum
 	}
 	wg.Wait()
 
-	var qs []*querydigest.SlowQuerySummary
-
-	for _, v := range summarizer.Map() {
-		qs = append(qs, v)
-	}
-
-	sort.Slice(qs, func(i, j int) bool {
-		return qs[i].TotalTime > qs[j].TotalTime
-	})
+	qs := summarizer.Summarize()
 
 	return qs, summarizer.TotalQueryTime(), nil
 }
