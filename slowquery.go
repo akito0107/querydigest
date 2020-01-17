@@ -2,10 +2,12 @@ package querydigest
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"log"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 type SlowQueryScanner struct {
@@ -56,7 +58,6 @@ func (s *SlowQueryScanner) Next() bool {
 
 		slowquery.QueryTime = parseQueryTime(s.line)
 
-		var query string
 		for {
 			if err := s.nextLine(); err == io.EOF {
 				return false
@@ -65,9 +66,21 @@ func (s *SlowQueryScanner) Next() bool {
 				return false
 			}
 
-			if parsableQueryLine(s.line) {
-				query = s.line
-				slowquery.RawQuery = query
+			var buf string
+
+			for {
+				buf += s.line
+				if strings.HasSuffix(buf, ";") {
+					break
+				}
+				if err := s.nextLine(); err != nil {
+					s.err = err
+					return false
+				}
+			}
+
+			if parsableQueryLine(buf) {
+				slowquery.RawQuery = buf
 				s.currentInfo = &slowquery
 				return true
 			} else if strings.HasPrefix(s.line, "#") {
@@ -82,12 +95,16 @@ func (s *SlowQueryScanner) nextLine() error {
 	if err != nil {
 		return err
 	}
-	s.line = string(l)
+	if utf8.Valid(l) {
+		s.line = string(l)
+	} else {
+		s.line = fmt.Sprintf("%q", l)
+	}
 
 	return nil
 }
 
-var supportedSQLs = []string{"SELECT", "INSERT", "ALTER", "WITH", "CREATE", "DELETE", "UPDATE"}
+var supportedSQLs = []string{"SELECT", "INSERT", "ALTER", "WITH", "DELETE", "UPDATE"}
 
 func parsableQueryLine(str string) bool {
 	if len(str) > 8 {

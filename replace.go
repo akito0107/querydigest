@@ -24,7 +24,7 @@ func ReplaceWithZeroValue(src string) (string, error) {
 	}
 
 	res := sqlastutil.Apply(stmt, func(cursor *sqlastutil.Cursor) bool {
-		switch cursor.Node().(type) {
+		switch node := cursor.Node().(type) {
 		case *sqlast.LongValue:
 			cursor.Replace(sqlast.NewLongValue(0))
 		case *sqlast.DoubleValue:
@@ -39,6 +39,12 @@ func ReplaceWithZeroValue(src string) (string, error) {
 			cursor.Replace(sqlast.NewTimeValue(time.Date(1970, 1, 1, 0, 0, 0, 0, nil)))
 		case *sqlast.DateTimeValue:
 			cursor.Replace(sqlast.NewDateTimeValue(time.Date(1970, 1, 1, 0, 0, 0, 0, nil)))
+		case *sqlast.InList:
+			cursor.Replace(&sqlast.InList{
+				Expr: node.Expr,
+				Negated: node.Negated,
+				RParen: node.RParen,
+			})
 		}
 		return true
 	}, nil)

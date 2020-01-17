@@ -13,16 +13,33 @@ func TestSlowQueryScanner_Next(t *testing.T) {
 		name         string
 		fixturesPath string
 		expect       SlowQueryInfo
-	} {
+	}{
 		{
-			name: "header",
-			fixturesPath: "ignore",
-			expect:SlowQueryInfo{
-				RawQuery:    "select @@version_comment limit 1;",
-				QueryTime:   &QueryTime{
+			name:         "header",
+			fixturesPath: "header",
+			expect: SlowQueryInfo{
+				RawQuery: "select @@version_comment limit 1;",
+				QueryTime: &QueryTime{
 					QueryTime:    0.000126,
 					LockTime:     0,
 					RowsSent:     1,
+					RowsExamined: 0,
+				},
+			},
+		},
+		{
+			name:         "insert",
+			fixturesPath: "insert",
+			expect: SlowQueryInfo{
+				RawQuery: "INSERT INTO categories (`id`,`parent_id`,`category_name`) VALUES" +
+					"(1,0,\"ソファー\")," +
+					"(2,1,\"一人掛けソファー\")," +
+					"(3,1,\"二人掛けソファー\")," +
+					"(4,1,\"コーナーソファー\");",
+				QueryTime: &QueryTime{
+					QueryTime:    0.012964,
+					LockTime:     0.001197,
+					RowsSent:     0,
 					RowsExamined: 0,
 				},
 			},
