@@ -6,13 +6,14 @@ import (
 	"time"
 
 	"github.com/akito0107/xsqlparser"
-	"github.com/akito0107/xsqlparser/dialect"
 	"github.com/akito0107/xsqlparser/sqlast"
 	"github.com/akito0107/xsqlparser/sqlastutil"
+
+	"github.com/akito0107/querydigest/dialect"
 )
 
 func ReplaceWithZeroValue(src string) (string, error) {
-	parser, err := xsqlparser.NewParser(bytes.NewBufferString(src), &dialect.GenericSQLDialect{})
+	parser, err := xsqlparser.NewParser(bytes.NewBufferString(src), &dialect.MySQLDialect{})
 	if err != nil {
 		return "", err
 	}
