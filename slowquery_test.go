@@ -9,6 +9,7 @@ import (
 
 func TestSlowQueryScanner_Next(t *testing.T) {
 
+	// test fixtures created by using https://github.com/isucon/isucon9-qualify application.
 	cases := []struct {
 		name         string
 		fixturesPath string
@@ -71,10 +72,8 @@ func TestSlowQueryScanner_Next(t *testing.T) {
 			if diff := cmp.Diff(*info, c.expect); diff != "" {
 				t.Errorf("diff: %s", diff)
 			}
-
 		})
 	}
-
 }
 
 func BenchmarkSlowQueryScanner_SlowQueryInfo(b *testing.B) {

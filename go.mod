@@ -9,6 +9,7 @@ require (
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/mattn/go-runewidth v0.0.7 // indirect
 	github.com/pkg/profile v1.3.0
+	golang.org/x/perf v0.0.0-20191209155426-36b577b0eb03 // indirect
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	golang.org/x/tools v0.0.0-20191206204035-259af5ff87bd // indirect
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543

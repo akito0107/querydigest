@@ -2,11 +2,13 @@ package querydigest
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode/utf8"
 )
 
@@ -15,11 +17,17 @@ type SlowQueryScanner struct {
 	line        string
 	currentInfo *SlowQueryInfo
 	err         error
+	bufPool     sync.Pool
 }
 
 func NewSlowQueryScanner(r io.Reader) *SlowQueryScanner {
 	return &SlowQueryScanner{
 		reader: bufio.NewReaderSize(r, 1024*1024*16),
+		bufPool: sync.Pool{
+			New: func() interface{} {
+				return &bytes.Buffer{}
+			},
+		},
 	}
 }
 
@@ -66,11 +74,11 @@ func (s *SlowQueryScanner) Next() bool {
 				return false
 			}
 
-			var buf string
+			buf := s.bufPool.Get().(*bytes.Buffer)
 
 			for {
-				buf += s.line
-				if strings.HasSuffix(buf, ";") {
+				buf.WriteString(s.line)
+				if strings.HasSuffix(s.line, ";") {
 					break
 				}
 				if err := s.nextLine(); err != nil {
@@ -79,8 +87,9 @@ func (s *SlowQueryScanner) Next() bool {
 				}
 			}
 
-			if parsableQueryLine(buf) {
-				slowquery.RawQuery = buf
+			query := buf.String()
+			if parsableQueryLine(query) {
+				slowquery.RawQuery = query
 				s.currentInfo = &slowquery
 				return true
 			} else if strings.HasPrefix(s.line, "#") {
