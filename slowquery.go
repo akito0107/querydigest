@@ -2,10 +2,14 @@ package querydigest
 
 import (
 	"bufio"
+	"bytes"
+	"fmt"
 	"io"
 	"log"
 	"strconv"
 	"strings"
+	"sync"
+	"unicode/utf8"
 )
 
 type SlowQueryScanner struct {
@@ -13,11 +17,17 @@ type SlowQueryScanner struct {
 	line        string
 	currentInfo *SlowQueryInfo
 	err         error
+	bufPool     sync.Pool
 }
 
 func NewSlowQueryScanner(r io.Reader) *SlowQueryScanner {
 	return &SlowQueryScanner{
 		reader: bufio.NewReaderSize(r, 1024*1024*16),
+		bufPool: sync.Pool{
+			New: func() interface{} {
+				return &bytes.Buffer{}
+			},
+		},
 	}
 }
 
@@ -56,7 +66,6 @@ func (s *SlowQueryScanner) Next() bool {
 
 		slowquery.QueryTime = parseQueryTime(s.line)
 
-		var query string
 		for {
 			if err := s.nextLine(); err == io.EOF {
 				return false
@@ -65,8 +74,27 @@ func (s *SlowQueryScanner) Next() bool {
 				return false
 			}
 
-			if parsableQueryLine(s.line) {
-				query = s.line
+			buf := s.bufPool.Get().(*bytes.Buffer)
+
+			for {
+				buf.WriteString(s.line)
+				if strings.HasSuffix(s.line, ";") {
+					break
+				}
+				if err := s.nextLine(); err != nil {
+					s.err = err
+					buf.Reset()
+					s.bufPool.Put(buf)
+					return false
+				}
+			}
+
+			query := buf.String()
+
+			buf.Reset()
+			s.bufPool.Put(buf)
+
+			if parsableQueryLine(query) {
 				slowquery.RawQuery = query
 				s.currentInfo = &slowquery
 				return true
@@ -82,12 +110,16 @@ func (s *SlowQueryScanner) nextLine() error {
 	if err != nil {
 		return err
 	}
-	s.line = string(l)
+	if utf8.Valid(l) {
+		s.line = string(l)
+	} else {
+		s.line = fmt.Sprintf("%q", l)
+	}
 
 	return nil
 }
 
-var supportedSQLs = []string{"SELECT", "INSERT", "ALTER", "WITH", "CREATE", "DELETE", "UPDATE"}
+var supportedSQLs = []string{"SELECT", "INSERT", "ALTER", "WITH", "DELETE", "UPDATE"}
 
 func parsableQueryLine(str string) bool {
 	if len(str) > 8 {

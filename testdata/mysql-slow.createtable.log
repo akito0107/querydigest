@@ -1,0 +1,42 @@
+/usr/sbin/mysqld, Version: 5.7.28-0ubuntu0.18.04.4-log ((Ubuntu)). started with:
+Tcp port: 3306  Unix socket: /var/run/mysqld/mysqld.sock
+Time                 Id Command    Argument
+# Time: 2020-01-17T05:59:09.832280Z
+# User@Host: isucari[isucari] @ localhost []  Id:     2
+# Query_time: 0.000126  Lock_time: 0.000000 Rows_sent: 1  Rows_examined: 0
+SET timestamp=1579240749;
+select @@version_comment limit 1;
+# Time: 2020-01-17T05:59:12.346053Z
+# User@Host: isucari[isucari] @ localhost []  Id:     2
+# Query_time: 0.004370  Lock_time: 0.001289 Rows_sent: 2  Rows_examined: 2
+SET timestamp=1579240752;
+show databases;
+# Time: 2020-01-17T05:59:14.250521Z
+# User@Host: isucari[isucari] @ localhost []  Id:     2
+# Query_time: 0.000078  Lock_time: 0.000000 Rows_sent: 1  Rows_examined: 0
+SET timestamp=1579240754;
+SELECT DATABASE();
+# Time: 2020-01-17T06:06:15.114474Z
+# User@Host: isucari[isucari] @ localhost [127.0.0.1]  Id:     3
+# Query_time: 0.023334  Lock_time: 0.000000 Rows_sent: 0  Rows_examined: 0
+SET timestamp=1579241175;
+DROP TABLE IF EXISTS `shippings`;
+# Time: 2020-01-17T06:06:15.162769Z
+# User@Host: isucari[isucari] @ localhost [127.0.0.1]  Id:     3
+# Query_time: 0.048253  Lock_time: 0.000000 Rows_sent: 0  Rows_examined: 0
+SET timestamp=1579241175;
+CREATE TABLE `shippings` (
+  `transaction_evidence_id` bigint NOT NULL PRIMARY KEY,
+  `status` enum('initial', 'wait_pickup', 'shipping', 'done') NOT NULL,
+  `item_name` varchar(191) NOT NULL,
+  `item_id` bigint NOT NULL,
+  `reserve_id` varchar(191) NOT NULL,
+  `reserve_time` bigint NOT NULL,
+  `to_address` varchar(191) NOT NULL,
+  `to_name` varchar(191) NOT NULL,
+  `from_address` varchar(191) NOT NULL,
+  `from_name` varchar(191) NOT NULL,
+  `img_binary` mediumblob NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4;

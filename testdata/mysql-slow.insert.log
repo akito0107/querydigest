@@ -1,0 +1,13 @@
+/usr/sbin/mysqld, Version: 5.7.28-0ubuntu0.18.04.4-log ((Ubuntu)). started with:
+Tcp port: 3306  Unix socket: /var/run/mysqld/mysqld.sock
+Time                 Id Command    Argument
+# administrator command: Init DB;
+# Time: 2020-01-17T06:06:15.236547Z
+# User@Host: isucari[isucari] @ localhost [127.0.0.1]  Id:     3
+# Query_time: 0.012964  Lock_time: 0.001197 Rows_sent: 0  Rows_examined: 0
+SET timestamp=1579241175;
+INSERT INTO categories (`id`,`parent_id`,`category_name`) VALUES
+(1,0,"ソファー"),
+(2,1,"一人掛けソファー"),
+(3,1,"二人掛けソファー"),
+(4,1,"コーナーソファー");
