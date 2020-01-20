@@ -83,11 +83,17 @@ func (s *SlowQueryScanner) Next() bool {
 				}
 				if err := s.nextLine(); err != nil {
 					s.err = err
+					buf.Reset()
+					s.bufPool.Put(buf)
 					return false
 				}
 			}
 
 			query := buf.String()
+
+			buf.Reset()
+			s.bufPool.Put(buf)
+
 			if parsableQueryLine(query) {
 				slowquery.RawQuery = query
 				s.currentInfo = &slowquery
