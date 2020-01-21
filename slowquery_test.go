@@ -80,7 +80,7 @@ func BenchmarkSlowQueryScanner_SlowQueryInfo(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		f, err := os.Open("./slow.log")
+		f, err := os.Open("./benchdata/mysql-slow.log")
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -96,3 +96,4 @@ func BenchmarkSlowQueryScanner_SlowQueryInfo(b *testing.B) {
 		f.Close()
 	}
 }
+

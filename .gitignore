@@ -28,3 +28,7 @@
 bin
 slow.log
 *.pprof
+
+benchdata
+
+querydigest.out
