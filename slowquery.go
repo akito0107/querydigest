@@ -150,7 +150,7 @@ type SlowQueryInfo struct {
 
 func parseQueryTime(str string) *QueryTime {
 
-	queryTimes := strings.SplitN(str, " ", 12)
+	queryTimes := strings.Split(str, " ")
 	// Query_time
 	qt, err := strconv.ParseFloat(queryTimes[2], 64)
 	if err != nil {
