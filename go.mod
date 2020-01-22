@@ -8,10 +8,8 @@ require (
 	github.com/google/go-cmp v0.3.1
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/mattn/go-runewidth v0.0.7 // indirect
-	github.com/pkg/profile v1.3.0
-	golang.org/x/perf v0.0.0-20191209155426-36b577b0eb03 // indirect
-	golang.org/x/sync v0.0.0-20190423024810-112230192c58
-	golang.org/x/tools v0.0.0-20191206204035-259af5ff87bd // indirect
-	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
+	github.com/pkg/profile v1.4.0
+	github.com/stuartcarnie/go-simd v0.0.0-20181029150639-4ad6cd8935a6
+	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 // indirect
 	gonum.org/v1/gonum v0.6.1
 )
