@@ -24,12 +24,10 @@ func main() {
 	}
 	defer f.Close()
 
-
 	if *concurrency == 0 {
 		*concurrency = runtime.NumCPU()
 	}
 
 	querydigest.Run(os.Stdout, f, *previewSize, *concurrency)
-
 
 }
