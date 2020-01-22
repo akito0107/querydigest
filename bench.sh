@@ -4,11 +4,27 @@ set +eu
 
 now=`date +%s`
 count=${2:-1}
+tag=${3:-$now}
+
+resultPath="benchresult/${1}/${tag}"
+
+mkdir -p "${resultPath}"
 
 case "$1" in
-    "cli" )  go test -bench BenchmarkRun -benchmem -o querydigest.out -cpuprofile "cpu.cli.${now}.pprof" -memprofile "mem.cli.${now}.pprof" -count "${count}"\
-        | tee "cli.${now}.txt";;
+    "cli" )  go test -bench BenchmarkRun \
+        -benchmem -o "${resultPath}/querydigest.cli.${tag}.out" \
+        -cpuprofile "${resultPath}/cpu.cli.${tag}.pprof" \
+        -memprofile "${resultPath}/mem.cli.${tag}.pprof" \
+        -count "${count}"\
+        | tee "${resultPath}/cli.${tag}.txt";;
+
     "scanner" )  go test -bench BenchmarkSlowQueryScanner_SlowQueryInfo \
-        -benchmem -o querydigest.out -cpuprofile "cpu.scanner.${now}.pprof" -memprofile "mem.scanner.${now}.pprof" -count "${count}"\
-        | tee "scanner.${now}.txt";;
+        -benchmem -o "${resultPath}/querydigest.scanner.${tag}.out" \
+        -cpuprofile "${resultPath}/cpu.scanner.${tag}.pprof" \
+        -memprofile "${resultPath}/mem.scanner.${tag}.pprof" \
+        -count "${count}"\
+        | tee "${resultPath}/scanner.${tag}.txt";;
+    *)
+        rm -rf ${resultPath};
+        echo "unknown command";
 esac
