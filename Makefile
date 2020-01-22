@@ -2,8 +2,8 @@
 build: bin/querydigest
 
 .PHONY: bin/querydigest
-bin/querydigest:
-	go build -o bin/querydigest cmd/querydigest/main.go
+bin/querydigest: vendor
+	go build -o bin/querydigest -mod vendor cmd/querydigest/main.go
 
 # .PHONY: generate
 # generate:
@@ -11,4 +11,7 @@ bin/querydigest:
 .PHONY: test
 test: vendor
 	go test ./... -cover -count=1 -v
+
+vendor: go.mod go.sum
+	go mod vendor
 

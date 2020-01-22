@@ -2,14 +2,14 @@ package querydigest
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"io"
 	"log"
 	"strconv"
 	"strings"
 	"sync"
-	"unicode/utf8"
+
+	simdutf8 "github.com/stuartcarnie/go-simd/unicode/utf8"
 )
 
 type SlowQueryScanner struct {
@@ -25,7 +25,7 @@ func NewSlowQueryScanner(r io.Reader) *SlowQueryScanner {
 		reader: bufio.NewReaderSize(r, 1024*1024*16),
 		bufPool: sync.Pool{
 			New: func() interface{} {
-				return &bytes.Buffer{}
+				return &strings.Builder{}
 			},
 		},
 	}
@@ -74,10 +74,10 @@ func (s *SlowQueryScanner) Next() bool {
 				return false
 			}
 
-			var buf string
+			buf := s.bufPool.Get().(*strings.Builder)
 
 			for {
-				buf += s.line
+				buf.WriteString(s.line)
 				if strings.HasSuffix(s.line, ";") {
 					break
 				}
@@ -87,7 +87,7 @@ func (s *SlowQueryScanner) Next() bool {
 				}
 			}
 
-			query := buf
+			query := buf.String()
 
 			if parsableQueryLine(query) {
 				slowquery.RawQuery = query
@@ -105,7 +105,7 @@ func (s *SlowQueryScanner) nextLine() error {
 	if err != nil {
 		return err
 	}
-	if utf8.Valid(l) {
+	if simdutf8.Valid(l) {
 		s.line = string(l)
 	} else {
 		s.line = fmt.Sprintf("%q", l)
