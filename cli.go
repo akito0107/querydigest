@@ -39,7 +39,6 @@ func analyzeSlowQuery(r io.Reader, concurrency int) ([]*SlowQuerySummary, float6
 	summarizer := NewSummarizer()
 
 	var wg sync.WaitGroup
-	// for i := 0; i < concurrency; i++ {
 	for s := range parsequeue {
 		wg.Add(1)
 		go func(s *SlowQueryInfo) {
@@ -53,7 +52,6 @@ func analyzeSlowQuery(r io.Reader, concurrency int) ([]*SlowQuerySummary, float6
 			summarizer.Collect(s)
 		}(s)
 	}
-	// }
 	wg.Wait()
 
 	qs := summarizer.Summarize()

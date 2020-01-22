@@ -74,28 +74,20 @@ func (s *SlowQueryScanner) Next() bool {
 				return false
 			}
 
-			// buf := s.bufPool.Get().(*bytes.Buffer)
 			var buf string
 
 			for {
-				// buf.WriteString(s.line)
 				buf += s.line
 				if strings.HasSuffix(s.line, ";") {
 					break
 				}
 				if err := s.nextLine(); err != nil {
 					s.err = err
-					// buf.Reset()
-					// s.bufPool.Put(buf)
 					return false
 				}
 			}
 
-			//query := buf.String()
 			query := buf
-
-			// buf.Reset()
-			// s.bufPool.Put(buf)
 
 			if parsableQueryLine(query) {
 				slowquery.RawQuery = query
