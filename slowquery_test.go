@@ -76,6 +76,27 @@ func TestSlowQueryScanner_Next(t *testing.T) {
 	}
 }
 
+func Test_parseHeader(t *testing.T) {
+
+	src := `# Query_time: 0.004370  Lock_time: 0.001289 Rows_sent: 2  Rows_examined: 2`
+
+	ts := parseHeader(src)
+
+	if ts[1] != "0.004370" {
+		t.Errorf("expect: %s but %s", "0.004370", ts[1])
+	}
+	if ts[2] != "0.001289" {
+		t.Errorf("expect: %s but %s", "0.001289", ts[2])
+	}
+	if ts[3] != "2" {
+		t.Errorf("expect: %s but %s", "2", ts[3])
+	}
+	if ts[4] != "2" {
+		t.Errorf("expect: %s but %s", "2", ts[4])
+	}
+
+}
+
 func BenchmarkSlowQueryScanner_SlowQueryInfo(b *testing.B) {
 	b.ResetTimer()
 
