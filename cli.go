@@ -21,7 +21,6 @@ func Run(w io.Writer, src io.Reader, previewSize, concurrency int) {
 	print(w, results, total)
 }
 
-
 func print(w io.Writer, summaries []*SlowQuerySummary, totalTime float64) {
 	for i, s := range summaries {
 		fmt.Fprintln(w)
@@ -40,21 +39,21 @@ func analyzeSlowQuery(r io.Reader, concurrency int) ([]*SlowQuerySummary, float6
 	summarizer := NewSummarizer()
 
 	var wg sync.WaitGroup
-	for i := 0; i < concurrency; i++ {
+	// for i := 0; i < concurrency; i++ {
+	for s := range parsequeue {
 		wg.Add(1)
-		go func() {
+		go func(s *SlowQueryInfo) {
 			defer wg.Done()
-			for s := range parsequeue {
-				res, err := ReplaceWithZeroValue(s.RawQuery)
-				if err != nil {
-					continue
-				}
-				s.ParsedQuery = res
-
-				summarizer.Collect(s)
+			res, err := ReplaceWithZeroValue(s.RawQuery)
+			if err != nil {
+				return
 			}
-		}()
+			s.ParsedQuery = res
+
+			summarizer.Collect(s)
+		}(s)
 	}
+	// }
 	wg.Wait()
 
 	qs := summarizer.Summarize()
@@ -74,4 +73,3 @@ func parseRawFile(r io.Reader, parsequeue chan *SlowQueryInfo) {
 
 	close(parsequeue)
 }
-
