@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"unsafe"
 
 	simdutf8 "github.com/stuartcarnie/go-simd/unicode/utf8"
 )
@@ -26,6 +27,7 @@ func NewSlowQueryScanner(r io.Reader) *SlowQueryScanner {
 		bufPool: sync.Pool{
 			New: func() interface{} {
 				return &strings.Builder{}
+				// return &bytes.Buffer{}
 			},
 		},
 	}
@@ -83,11 +85,16 @@ func (s *SlowQueryScanner) Next() bool {
 				}
 				if err := s.nextLine(); err != nil {
 					s.err = err
+					buf.Reset()
+					s.bufPool.Put(buf)
 					return false
 				}
 			}
 
 			query := buf.String()
+
+			buf.Reset()
+			s.bufPool.Put(buf)
 
 			if parsableQueryLine(query) {
 				slowquery.RawQuery = query
@@ -106,7 +113,7 @@ func (s *SlowQueryScanner) nextLine() error {
 		return err
 	}
 	if simdutf8.Valid(l) {
-		s.line = string(l)
+		s.line = *(*string)(unsafe.Pointer(&l))
 	} else {
 		s.line = fmt.Sprintf("%q", l)
 	}
@@ -145,7 +152,7 @@ type SlowQueryInfo struct {
 
 func parseQueryTime(str string) *QueryTime {
 
-	queryTimes := strings.Split(str, " ")
+	queryTimes := strings.SplitN(str, " ", 12)
 	// Query_time
 	qt, err := strconv.ParseFloat(queryTimes[2], 64)
 	if err != nil {
