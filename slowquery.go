@@ -150,26 +150,39 @@ type SlowQueryInfo struct {
 	QueryTime   *QueryTime
 }
 
+func parseHeader(str string) []string {
+	times := strings.SplitN(str, ":", 5)
+
+	times[1] = times[1][1:len(times[1])-11]
+	times[2] = times[2][1:len(times[2])-10]
+	times[3] = times[3][1:len(times[3])-15]
+	times[4] = times[4][1:]
+
+	return times
+}
+
 func parseQueryTime(str string) *QueryTime {
 
-	queryTimes := strings.SplitN(str, " ", 12)
+	queryTimes := parseHeader(str)
+
+	// queryTimes := strings.SplitN(str, ":", 5)
 	// Query_time
-	qt, err := strconv.ParseFloat(queryTimes[2], 64)
+	qt, err := strconv.ParseFloat(queryTimes[1], 64)
 	if err != nil {
 		log.Fatal(err)
 	}
 	// Lock_time
-	lt, err := strconv.ParseFloat(queryTimes[5], 64)
+	lt, err := strconv.ParseFloat(queryTimes[2], 64)
 	if err != nil {
 		log.Fatal(err)
 	}
 	// Rows_sent
-	rs, err := strconv.ParseInt(queryTimes[7], 10, 64)
+	rs, err := strconv.ParseInt(queryTimes[3], 10, 64)
 	if err != nil {
 		log.Fatal(err)
 	}
 	// Rows_examined
-	re, err := strconv.ParseInt(queryTimes[10], 10, 64)
+	re, err := strconv.ParseInt(queryTimes[4], 10, 64)
 	if err != nil {
 		log.Fatal(err)
 	}
