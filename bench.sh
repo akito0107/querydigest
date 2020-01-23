@@ -16,6 +16,7 @@ case "$1" in
         -cpuprofile "${resultPath}/cpu.cli.${tag}.pprof" \
         -memprofile "${resultPath}/mem.cli.${tag}.pprof" \
         -count "${count}"\
+        -cpu 2,4,6,8,12 \
         | tee "${resultPath}/cli.${tag}.txt";;
 
     "scanner" )  go test -bench BenchmarkSlowQueryScanner_SlowQueryInfo \
@@ -23,6 +24,7 @@ case "$1" in
         -cpuprofile "${resultPath}/cpu.scanner.${tag}.pprof" \
         -memprofile "${resultPath}/mem.scanner.${tag}.pprof" \
         -count "${count}"\
+        -cpu 2,4,6,8,12 \
         | tee "${resultPath}/scanner.${tag}.txt";;
     *)
         rm -rf ${resultPath};
