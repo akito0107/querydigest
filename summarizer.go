@@ -30,7 +30,7 @@ func (s *Summarizer) Collect(i *SlowQueryInfo) {
 	summary, ok := s.m[i.ParsedQuery]
 	if !ok {
 		summary = &SlowQuerySummary{
-			RowSample: i.RawQuery,
+			RowSample: string(i.RawQuery),
 		}
 	}
 	summary.appendQueryTime(i)

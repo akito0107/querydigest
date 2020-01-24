@@ -1,6 +1,7 @@
 package querydigest
 
 import (
+	"bytes"
 	"os"
 	"testing"
 
@@ -19,7 +20,7 @@ func TestSlowQueryScanner_Next(t *testing.T) {
 			name:         "header",
 			fixturesPath: "header",
 			expect: SlowQueryInfo{
-				RawQuery: "select @@version_comment limit 1;",
+				RawQuery: bytes.NewBufferString("select @@version_comment limit 1;").Bytes(),
 				QueryTime: &QueryTime{
 					QueryTime:    0.000126,
 					LockTime:     0,
@@ -32,11 +33,11 @@ func TestSlowQueryScanner_Next(t *testing.T) {
 			name:         "insert",
 			fixturesPath: "insert",
 			expect: SlowQueryInfo{
-				RawQuery: "INSERT INTO categories (`id`,`parent_id`,`category_name`) VALUES" +
+				RawQuery: bytes.NewBufferString("INSERT INTO categories (`id`,`parent_id`,`category_name`) VALUES" +
 					"(1,0,\"ソファー\")," +
 					"(2,1,\"一人掛けソファー\")," +
 					"(3,1,\"二人掛けソファー\")," +
-					"(4,1,\"コーナーソファー\");",
+					"(4,1,\"コーナーソファー\");").Bytes(),
 				QueryTime: &QueryTime{
 					QueryTime:    0.012964,
 					LockTime:     0.001197,
@@ -117,4 +118,3 @@ func BenchmarkSlowQueryScanner_SlowQueryInfo(b *testing.B) {
 		f.Close()
 	}
 }
-
