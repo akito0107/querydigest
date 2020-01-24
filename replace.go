@@ -12,7 +12,7 @@ import (
 	"github.com/akito0107/querydigest/dialect"
 )
 
-func ReplaceWithZeroValue(src string) (string, error) {
+func ReplaceWithZeroValue(src []byte) (string, error) {
 	// FIXME evil work around
 	defer func() {
 		if err := recover(); err != nil {
@@ -21,7 +21,7 @@ func ReplaceWithZeroValue(src string) (string, error) {
 			return
 		}
 	}()
-	parser, err := xsqlparser.NewParser(bytes.NewBufferString(src), &dialect.MySQLDialect{})
+	parser, err := xsqlparser.NewParser(bytes.NewBuffer(src), &dialect.MySQLDialect{})
 	if err != nil {
 		return "", err
 	}

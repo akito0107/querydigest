@@ -2,6 +2,7 @@ package querydigest
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -10,7 +11,7 @@ import (
 	"sync"
 	"unsafe"
 
-	simdutf8 "github.com/stuartcarnie/go-simd/unicode/utf8"
+	"github.com/stuartcarnie/go-simd/unicode/utf8"
 )
 
 type SlowQueryScanner struct {
@@ -21,13 +22,16 @@ type SlowQueryScanner struct {
 	bufPool     sync.Pool
 }
 
+const size = 1024 * 1024
+
 func NewSlowQueryScanner(r io.Reader) *SlowQueryScanner {
 	return &SlowQueryScanner{
-		reader: bufio.NewReaderSize(r, 1024*1024*16),
+		reader: bufio.NewReaderSize(r, size),
 		bufPool: sync.Pool{
 			New: func() interface{} {
-				return &strings.Builder{}
-				// return &bytes.Buffer{}
+				buf := &bytes.Buffer{}
+				buf.Grow(size)
+				return buf
 			},
 		},
 	}
@@ -76,7 +80,7 @@ func (s *SlowQueryScanner) Next() bool {
 				return false
 			}
 
-			buf := s.bufPool.Get().(*strings.Builder)
+			buf := s.bufPool.Get().(*bytes.Buffer)
 
 			for {
 				buf.WriteString(s.line)
@@ -91,18 +95,25 @@ func (s *SlowQueryScanner) Next() bool {
 				}
 			}
 
-			query := buf.String()
+			b := buf.Bytes()
+			q := make([]byte, len(b))
+			copy(q, b)
 
-			buf.Reset()
-			s.bufPool.Put(buf)
-
-			if parsableQueryLine(query) {
-				slowquery.RawQuery = query
+			if len(b) > 6 && parsableQueryLine(b[:6]) {
+				slowquery.RawQuery = q
 				s.currentInfo = &slowquery
+
+				buf.Reset()
+				s.bufPool.Put(buf)
+
 				return true
 			} else if strings.HasPrefix(s.line, "#") {
+				buf.Reset()
+				s.bufPool.Put(buf)
 				break
 			}
+			buf.Reset()
+			s.bufPool.Put(buf)
 		}
 	}
 }
@@ -112,7 +123,7 @@ func (s *SlowQueryScanner) nextLine() error {
 	if err != nil {
 		return err
 	}
-	if simdutf8.Valid(l) {
+	if utf8.Valid(l) {
 		s.line = *(*string)(unsafe.Pointer(&l))
 	} else {
 		s.line = fmt.Sprintf("%q", l)
@@ -123,13 +134,17 @@ func (s *SlowQueryScanner) nextLine() error {
 
 var supportedSQLs = []string{"SELECT", "INSERT", "ALTER", "WITH", "DELETE", "UPDATE"}
 
-func parsableQueryLine(str string) bool {
-	if len(str) > 8 {
-		str = str[:8]
+func parsableQueryLine(str []byte) bool {
+	for i := 0; i < len(str); i++ {
+		if 'a' <= str[i] && str[i] <= 'z' {
+			str[i] -= 'a' - 'A'
+		}
 	}
-	str = strings.ToUpper(str)
+
+	q := *(*string)(unsafe.Pointer(&str))
+
 	for _, s := range supportedSQLs {
-		if strings.HasPrefix(str, s) {
+		if strings.HasPrefix(q, s) {
 			return true
 		}
 	}
@@ -146,16 +161,16 @@ type QueryTime struct {
 
 type SlowQueryInfo struct {
 	ParsedQuery string
-	RawQuery    string
+	RawQuery    []byte
 	QueryTime   *QueryTime
 }
 
 func parseHeader(str string) []string {
 	times := strings.SplitN(str, ":", 5)
 
-	times[1] = times[1][1:len(times[1])-11]
-	times[2] = times[2][1:len(times[2])-10]
-	times[3] = times[3][1:len(times[3])-15]
+	times[1] = times[1][1 : len(times[1])-11]
+	times[2] = times[2][1 : len(times[2])-10]
+	times[3] = times[3][1 : len(times[3])-15]
 	times[4] = times[4][1:]
 
 	return times

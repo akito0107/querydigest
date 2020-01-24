@@ -31,5 +31,4 @@ func main() {
 	}
 
 	querydigest.Run(os.Stdout, f, *previewSize, *concurrency)
-
 }
