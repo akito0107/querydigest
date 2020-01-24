@@ -83,17 +83,17 @@ func Test_parseHeader(t *testing.T) {
 
 	ts := parseHeader(src)
 
-	if ts[1] != "0.004370" {
-		t.Errorf("expect: %s but %s", "0.004370", ts[1])
+	if ts[0] != "0.004370" {
+		t.Errorf("expect: `%s` but `%s`", "0.004370", ts[0])
 	}
-	if ts[2] != "0.001289" {
-		t.Errorf("expect: %s but %s", "0.001289", ts[2])
+	if ts[1] != "0.001289" {
+		t.Errorf("expect: `%s` but `%s`", "0.001289", ts[1])
+	}
+	if ts[2] != "2" {
+		t.Errorf("expect: `%s` but `%s`", "2", ts[2])
 	}
 	if ts[3] != "2" {
-		t.Errorf("expect: %s but %s", "2", ts[3])
-	}
-	if ts[4] != "2" {
-		t.Errorf("expect: %s but %s", "2", ts[4])
+		t.Errorf("expect: `%s` but `%s`", "2", ts[3])
 	}
 
 }

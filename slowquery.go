@@ -166,14 +166,33 @@ type SlowQueryInfo struct {
 }
 
 func parseHeader(str string) []string {
-	times := strings.SplitN(str, ":", 5)
+	// skip `# Query_time: `
+	str = str[14:]
 
-	times[1] = times[1][1 : len(times[1])-11]
-	times[2] = times[2][1 : len(times[2])-10]
-	times[3] = times[3][1 : len(times[3])-15]
-	times[4] = times[4][1:]
+	var i int
+	for i = 0; i < len(str); i++ {
+		if str[i] == ' ' {
+			break
+		}
+	}
+	quickTime := str[:i]
+	str = str[i+13:]
+	for i = 0; i < len(str); i++ {
+		if str[i] == ' ' {
+			break
+		}
+	}
+	lockTime := str[:i]
+	str = str[i+12:]
+	for i = 0; i < len(str); i++ {
+		if str[i] == ' ' {
+			break
+		}
+	}
+	rowsSent := str[:i]
+	rowsExamined :=str[i+17:]
 
-	return times
+	return []string{quickTime, lockTime, rowsSent, rowsExamined}
 }
 
 func parseQueryTime(str string) *QueryTime {
@@ -182,22 +201,22 @@ func parseQueryTime(str string) *QueryTime {
 
 	// queryTimes := strings.SplitN(str, ":", 5)
 	// Query_time
-	qt, err := strconv.ParseFloat(queryTimes[1], 64)
+	qt, err := strconv.ParseFloat(queryTimes[0], 64)
 	if err != nil {
 		log.Fatal(err)
 	}
 	// Lock_time
-	lt, err := strconv.ParseFloat(queryTimes[2], 64)
+	lt, err := strconv.ParseFloat(queryTimes[1], 64)
 	if err != nil {
 		log.Fatal(err)
 	}
 	// Rows_sent
-	rs, err := strconv.ParseInt(queryTimes[3], 10, 64)
+	rs, err := strconv.ParseInt(queryTimes[2], 10, 64)
 	if err != nil {
 		log.Fatal(err)
 	}
 	// Rows_examined
-	re, err := strconv.ParseInt(queryTimes[4], 10, 64)
+	re, err := strconv.ParseInt(queryTimes[3], 10, 64)
 	if err != nil {
 		log.Fatal(err)
 	}
