@@ -3,7 +3,7 @@ module github.com/akito0107/querydigest
 go 1.13
 
 require (
-	github.com/akito0107/xsqlparser v1.0.0-alpha.5.0.20191129023504-ca022d4a3343
+	github.com/akito0107/xsqlparser v1.0.0-alpha.5.0.20200127050106-477fde8a0a46
 	github.com/go-openapi/strfmt v0.19.3 // indirect
 	github.com/google/go-cmp v0.3.1
 	github.com/jedib0t/go-pretty v4.3.0+incompatible

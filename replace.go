@@ -2,21 +2,27 @@ package querydigest
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/akito0107/xsqlparser"
+	"github.com/akito0107/xsqlparser/dialect"
 	"github.com/akito0107/xsqlparser/sqlast"
 	"github.com/akito0107/xsqlparser/sqlastutil"
+	"github.com/akito0107/xsqlparser/sqltoken"
 
-	"github.com/akito0107/querydigest/dialect"
 )
 
 func ReplaceWithZeroValue(src []byte) (string, error) {
-	parser, err := xsqlparser.NewParser(bytes.NewBuffer(src), &dialect.MySQLDialect{})
+	tokenizer := sqltoken.NewTokenizerWithOptions(bytes.NewBuffer(src), sqltoken.Dialect(&dialect.MySQLDialect{}), sqltoken.DisableParseComment())
+	tokset, err := tokenizer.Tokenize()
 	if err != nil {
-		return "", err
+		return "",  fmt.Errorf("tokenize failed src: %s : %w", string(src), err)
 	}
+	parser := xsqlparser.NewParserWithOptions()
+	parser.SetTokens(tokset)
+
 	stmt, err := parser.ParseStatement()
 	if err != nil {
 		log.Printf("Parse failed: invalied sql: %s \n", src)
