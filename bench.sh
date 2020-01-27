@@ -5,6 +5,7 @@ set +eu
 now=`date +%s`
 count=${2:-1}
 tag=${3:-$now}
+core=${4:-"2,4,6,8,12"}
 
 resultPath="benchresult/${1}/${tag}"
 
@@ -16,7 +17,7 @@ case "$1" in
         -cpuprofile "${resultPath}/cpu.pprof" \
         -memprofile "${resultPath}/mem.pprof" \
         -count "${count}"\
-        -cpu 2,4,6,8,12 \
+        -cpu "${core}" \
         | tee "${resultPath}/cli.txt";;
 
     "scanner" )  go test -bench BenchmarkSlowQueryScanner_SlowQueryInfo \
