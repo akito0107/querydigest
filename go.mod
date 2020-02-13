@@ -3,9 +3,9 @@ module github.com/akito0107/querydigest
 go 1.13
 
 require (
-	github.com/akito0107/xsqlparser v1.0.0-alpha.5.0.20191129023504-ca022d4a3343
+	github.com/akito0107/xsqlparser v1.0.0-alpha.5.0.20200213154732-d14aca40387c
 	github.com/go-openapi/strfmt v0.19.3 // indirect
-	github.com/google/go-cmp v0.3.1
+	github.com/google/go-cmp v0.4.0
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/mattn/go-runewidth v0.0.7 // indirect
 	github.com/pkg/profile v1.3.0

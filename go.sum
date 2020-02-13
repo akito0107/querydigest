@@ -7,6 +7,8 @@ github.com/akito0107/xsqlparser v1.0.0-alpha.4 h1:0j8z/UvmujkwfRSRz4LTY5kTIOyOgk
 github.com/akito0107/xsqlparser v1.0.0-alpha.4/go.mod h1:OOdRT/bGNXxNocgueEE8Yq+0BhofpibxSVCCtQGgr9I=
 github.com/akito0107/xsqlparser v1.0.0-alpha.5.0.20191129023504-ca022d4a3343 h1:/3LkboQYLT8peALSE73H0oinA6rZ3kPPREKt+I+1Fv4=
 github.com/akito0107/xsqlparser v1.0.0-alpha.5.0.20191129023504-ca022d4a3343/go.mod h1:+6r2ZNjHjXmqDLYcNdC3axnVByJ6Wyzx9ZVQs+JB53k=
+github.com/akito0107/xsqlparser v1.0.0-alpha.5.0.20200213154732-d14aca40387c h1:EWHe1dLQ5591s7N/YAvrD3UpG/KA/YjnD7HY/VQ8PXE=
+github.com/akito0107/xsqlparser v1.0.0-alpha.5.0.20200213154732-d14aca40387c/go.mod h1:+6r2ZNjHjXmqDLYcNdC3axnVByJ6Wyzx9ZVQs+JB53k=
 github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883/go.mod h1:rCTlJbsFo29Kk6CurOXKm700vrz8f0KW0JNfpkRJY/8=
 github.com/asaskevich/govalidator v0.0.0-20190424111038-f61b66f89f4a h1:idn718Q4B6AGu/h5Sxe66HYVdqdGu2l9Iebqhi/AEoA=
 github.com/asaskevich/govalidator v0.0.0-20190424111038-f61b66f89f4a/go.mod h1:lB+ZfQJz7igIIfQNfa7Ml4HSf2uFQQRzpGGRXenZAgY=
@@ -30,6 +32,8 @@ github.com/gonum/matrix v0.0.0-20181209220409-c518dec07be9/go.mod h1:0EXg4mc1CNP
 github.com/google/go-cmp v0.3.0/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
 github.com/google/go-cmp v0.3.1 h1:Xye71clBPdm5HgqGwUkwhbynsUJZhDbS20FvLhQ2izg=
 github.com/google/go-cmp v0.3.1/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
+github.com/google/go-cmp v0.4.0 h1:xsAVV57WRhGj6kEIi8ReJzQlHHqcBYCElAvkovg3B/4=
+github.com/google/go-cmp v0.4.0/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
 github.com/google/uuid v1.1.1/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/googleapis/gax-go v0.0.0-20161107002406-da06d194a00e/go.mod h1:SFVmujtThgffbyetf+mdk2eWhX2bMyUtNHzFKcPA9HY=
 github.com/jedib0t/go-pretty v4.3.0+incompatible h1:CGs8AVhEKg/n9YbUenWmNStRW2PHJzaeDodcfvRAbIo=

@@ -13,6 +13,13 @@ import (
 )
 
 func ReplaceWithZeroValue(src string) (string, error) {
+	// FIXME evil work around
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("fatal err: %v", err)
+			return
+		}
+	}()
 	parser, err := xsqlparser.NewParser(bytes.NewBufferString(src), &dialect.MySQLDialect{})
 	if err != nil {
 		return "", err
@@ -41,9 +48,9 @@ func ReplaceWithZeroValue(src string) (string, error) {
 			cursor.Replace(sqlast.NewDateTimeValue(time.Date(1970, 1, 1, 0, 0, 0, 0, nil)))
 		case *sqlast.InList:
 			cursor.Replace(&sqlast.InList{
-				Expr: node.Expr,
+				Expr:    node.Expr,
 				Negated: node.Negated,
-				RParen: node.RParen,
+				RParen:  node.RParen,
 			})
 		}
 		return true
