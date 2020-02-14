@@ -16,7 +16,8 @@ func ReplaceWithZeroValue(src string) (string, error) {
 	// FIXME evil work around
 	defer func() {
 		if err := recover(); err != nil {
-			log.Printf("fatal err: %v", err)
+			// log.Printf("fatal err: %v", err)
+			log.Printf("fatal err")
 			return
 		}
 	}()
@@ -26,7 +27,7 @@ func ReplaceWithZeroValue(src string) (string, error) {
 	}
 	stmt, err := parser.ParseStatement()
 	if err != nil {
-		log.Printf("Parse failed: invalied sql: %s \n", src)
+		log.Printf("Parse failed: invalied sql: %s \n", src[:50])
 		return "", err
 	}
 
