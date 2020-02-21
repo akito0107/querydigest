@@ -11,21 +11,20 @@ import (
 	"github.com/akito0107/xsqlparser/sqlast"
 	"github.com/akito0107/xsqlparser/sqlastutil"
 	"github.com/akito0107/xsqlparser/sqltoken"
-
 )
 
 func ReplaceWithZeroValue(src []byte) (string, error) {
 	tokenizer := sqltoken.NewTokenizerWithOptions(bytes.NewBuffer(src), sqltoken.Dialect(&dialect.MySQLDialect{}), sqltoken.DisableParseComment())
 	tokset, err := tokenizer.Tokenize()
 	if err != nil {
-		return "",  fmt.Errorf("tokenize failed src: %s : %w", string(src), err)
+		return "", fmt.Errorf("tokenize failed src: %s : %w", string(src), err)
 	}
 	parser := xsqlparser.NewParserWithOptions()
 	parser.SetTokens(tokset)
 
 	stmt, err := parser.ParseStatement()
 	if err != nil {
-		log.Printf("Parse failed: invalied sql: %s \n", src)
+		log.Printf("Parse failed: invalid sql: %s \n", src)
 		return "", err
 	}
 
@@ -47,9 +46,9 @@ func ReplaceWithZeroValue(src []byte) (string, error) {
 			cursor.Replace(sqlast.NewDateTimeValue(time.Date(1970, 1, 1, 0, 0, 0, 0, nil)))
 		case *sqlast.InList:
 			cursor.Replace(&sqlast.InList{
-				Expr: node.Expr,
+				Expr:    node.Expr,
 				Negated: node.Negated,
-				RParen: node.RParen,
+				RParen:  node.RParen,
 			})
 		}
 		return true
