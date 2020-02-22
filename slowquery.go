@@ -8,7 +8,6 @@ import (
 	"log"
 	"strconv"
 	"strings"
-	"sync"
 	"unsafe"
 
 	"github.com/stuartcarnie/go-simd/unicode/utf8"
@@ -17,30 +16,26 @@ import (
 )
 
 type SlowQueryScanner struct {
-	reader      *bufio.Reader
-	line        string
-	currentInfo *SlowQueryInfo
-	err         error
-	bufPool     sync.Pool
+	reader       *bufio.Reader
+	line         string
+	currentInfo  SlowQueryInfo
+	err          error
+	queryBuf     *bytes.Buffer
+	queryTimeBuf *bytes.Buffer
 }
 
 const size = 32 * 1024 * 1024
 
 func NewSlowQueryScanner(r io.Reader) *SlowQueryScanner {
 	return &SlowQueryScanner{
-		reader: bufio.NewReaderSize(r, size),
-		bufPool: sync.Pool{
-			New: func() interface{} {
-				buf := &bytes.Buffer{}
-				buf.Grow(size)
-				return buf
-			},
-		},
+		reader:       bufio.NewReaderSize(r, size),
+		queryBuf:     bytes.NewBuffer(make([]byte, size)),
+		queryTimeBuf: &bytes.Buffer{},
 	}
 }
 
 func (s *SlowQueryScanner) SlowQueryInfo() *SlowQueryInfo {
-	return s.currentInfo
+	return &s.currentInfo
 }
 
 func (s *SlowQueryScanner) Err() error {
@@ -60,7 +55,6 @@ func (s *SlowQueryScanner) Next() bool {
 				return false
 			}
 		}
-		var slowquery SlowQueryInfo
 
 		if err := s.nextLine(); err != nil {
 			s.err = err
@@ -72,7 +66,8 @@ func (s *SlowQueryScanner) Next() bool {
 			return false
 		}
 
-		slowquery.QueryTime = parseQueryTime(s.line)
+		s.queryTimeBuf.Reset()
+		s.queryTimeBuf.WriteString(s.line)
 
 		for {
 			if err := s.nextLine(); err == io.EOF {
@@ -82,40 +77,31 @@ func (s *SlowQueryScanner) Next() bool {
 				return false
 			}
 
-			buf := s.bufPool.Get().(*bytes.Buffer)
+			s.queryBuf.Reset()
 
 			for {
-				buf.WriteString(s.line)
+				s.queryBuf.WriteString(s.line)
 				if strings.HasSuffix(s.line, ";") {
 					break
 				}
 				if err := s.nextLine(); err != nil {
 					s.err = err
-					buf.Reset()
-					s.bufPool.Put(buf)
 					return false
 				}
 			}
 
-			b := buf.Bytes()
-			q := make([]byte, len(b))
-			copy(q, b)
-
+			b := s.queryBuf.Bytes()
 			if len(b) > 6 && parsableQueryLine(b[:6]) {
-				slowquery.RawQuery = q
-				s.currentInfo = &slowquery
-
-				buf.Reset()
-				s.bufPool.Put(buf)
-
+				if cap(s.currentInfo.RawQuery) < len(b) {
+					s.currentInfo.RawQuery = make([]byte, len(b))
+				}
+				s.currentInfo.RawQuery = s.currentInfo.RawQuery[:len(b)]
+				copy(s.currentInfo.RawQuery, b)
+				parseQueryTime(&s.currentInfo.QueryTime, unsafeString(s.queryTimeBuf.Bytes()))
 				return true
 			} else if strings.HasPrefix(s.line, "#") {
-				buf.Reset()
-				s.bufPool.Put(buf)
 				break
 			}
-			buf.Reset()
-			s.bufPool.Put(buf)
 		}
 	}
 }
@@ -126,12 +112,16 @@ func (s *SlowQueryScanner) nextLine() error {
 		return err
 	}
 	if utf8.Valid(l) {
-		s.line = *(*string)(unsafe.Pointer(&l))
+		s.line = unsafeString(l)
 	} else {
 		s.line = fmt.Sprintf("%q", l)
 	}
 
 	return nil
+}
+
+func unsafeString(b []byte) string {
+	return *(*string)(unsafe.Pointer(&b))
 }
 
 var supportedSQLs = dart.Must(dart.Build([]string{
@@ -157,10 +147,19 @@ type QueryTime struct {
 type SlowQueryInfo struct {
 	ParsedQuery string
 	RawQuery    []byte
-	QueryTime   *QueryTime
+	QueryTime   QueryTime
 }
 
-func parseHeader(str string) []string {
+func (i *SlowQueryInfo) clone() *SlowQueryInfo {
+	rawQuery := make([]byte, len(i.RawQuery))
+	copy(rawQuery, i.RawQuery)
+	return &SlowQueryInfo{
+		RawQuery:  rawQuery,
+		QueryTime: i.QueryTime,
+	}
+}
+
+func parseHeader(str string) (queryTime, lockTime, rowsSent, rowsExamined string) {
 	// skip `# Query_time: `
 	str = str[14:]
 
@@ -170,55 +169,53 @@ func parseHeader(str string) []string {
 			break
 		}
 	}
-	queryTime := str[:i]
+	queryTime = str[:i]
 	str = str[i+13:]
 	for i = 0; i < len(str); i++ {
 		if str[i] == ' ' {
 			break
 		}
 	}
-	lockTime := str[:i]
+	lockTime = str[:i]
 	str = str[i+12:]
 	for i = 0; i < len(str); i++ {
 		if str[i] == ' ' {
 			break
 		}
 	}
-	rowsSent := str[:i]
-	rowsExamined := str[i+17:]
+	rowsSent = str[:i]
+	rowsExamined = str[i+17:]
 
-	return []string{queryTime, lockTime, rowsSent, rowsExamined}
+	return queryTime, lockTime, rowsSent, rowsExamined
 }
 
-func parseQueryTime(str string) *QueryTime {
+func parseQueryTime(q *QueryTime, str string) {
 
-	queryTimes := parseHeader(str)
+	queryTime, lockTime, rowsSent, rowsExamined := parseHeader(str)
 
 	// queryTimes := strings.SplitN(str, ":", 5)
 	// Query_time
-	qt, err := strconv.ParseFloat(queryTimes[0], 64)
+	qt, err := strconv.ParseFloat(queryTime, 64)
 	if err != nil {
 		log.Fatal(err)
 	}
 	// Lock_time
-	lt, err := strconv.ParseFloat(queryTimes[1], 64)
+	lt, err := strconv.ParseFloat(lockTime, 64)
 	if err != nil {
 		log.Fatal(err)
 	}
 	// Rows_sent
-	rs, err := strconv.ParseInt(queryTimes[2], 10, 64)
+	rs, err := strconv.ParseInt(rowsSent, 10, 64)
 	if err != nil {
 		log.Fatal(err)
 	}
 	// Rows_examined
-	re, err := strconv.ParseInt(queryTimes[3], 10, 64)
+	re, err := strconv.ParseInt(rowsExamined, 10, 64)
 	if err != nil {
 		log.Fatal(err)
 	}
-	return &QueryTime{
-		QueryTime:    qt,
-		LockTime:     lt,
-		RowsSent:     int(rs),
-		RowsExamined: int(re),
-	}
+	q.QueryTime = qt
+	q.LockTime = lt
+	q.RowsSent = int(rs)
+	q.RowsExamined = int(re)
 }

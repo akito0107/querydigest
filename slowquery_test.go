@@ -21,7 +21,7 @@ func TestSlowQueryScanner_Next(t *testing.T) {
 			fixturesPath: "header",
 			expect: SlowQueryInfo{
 				RawQuery: bytes.NewBufferString("select @@version_comment limit 1;").Bytes(),
-				QueryTime: &QueryTime{
+				QueryTime: QueryTime{
 					QueryTime:    0.000126,
 					LockTime:     0,
 					RowsSent:     1,
@@ -38,7 +38,7 @@ func TestSlowQueryScanner_Next(t *testing.T) {
 					"(2,1,\"一人掛けソファー\")," +
 					"(3,1,\"二人掛けソファー\")," +
 					"(4,1,\"コーナーソファー\");").Bytes(),
-				QueryTime: &QueryTime{
+				QueryTime: QueryTime{
 					QueryTime:    0.012964,
 					LockTime:     0.001197,
 					RowsSent:     0,
@@ -81,19 +81,19 @@ func Test_parseHeader(t *testing.T) {
 
 	src := `# Query_time: 0.004370  Lock_time: 0.001289 Rows_sent: 2  Rows_examined: 2`
 
-	ts := parseHeader(src)
+	queryTime, lockTime, rowsSent, rowsExamined := parseHeader(src)
 
-	if ts[0] != "0.004370" {
-		t.Errorf("expect: `%s` but `%s`", "0.004370", ts[0])
+	if queryTime != "0.004370" {
+		t.Errorf("expect: `%s` but `%s`", "0.004370", queryTime)
 	}
-	if ts[1] != "0.001289" {
-		t.Errorf("expect: `%s` but `%s`", "0.001289", ts[1])
+	if lockTime != "0.001289" {
+		t.Errorf("expect: `%s` but `%s`", "0.001289", lockTime)
 	}
-	if ts[2] != "2" {
-		t.Errorf("expect: `%s` but `%s`", "2", ts[2])
+	if rowsSent != "2" {
+		t.Errorf("expect: `%s` but `%s`", "2", rowsSent)
 	}
-	if ts[3] != "2" {
-		t.Errorf("expect: `%s` but `%s`", "2", ts[3])
+	if rowsExamined != "2" {
+		t.Errorf("expect: `%s` but `%s`", "2", rowsExamined)
 	}
 
 }
