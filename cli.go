@@ -67,7 +67,7 @@ func parseRawFile(r io.Reader, parsequeue chan *SlowQueryInfo) {
 	slowqueryscanner := NewSlowQueryScanner(r)
 
 	for slowqueryscanner.Next() {
-		parsequeue <- slowqueryscanner.SlowQueryInfo()
+		parsequeue <- slowqueryscanner.SlowQueryInfo().clone()
 	}
 	if err := slowqueryscanner.Err(); err != nil {
 		log.Fatal(err)
