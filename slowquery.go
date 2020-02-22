@@ -12,6 +12,8 @@ import (
 	"unsafe"
 
 	"github.com/stuartcarnie/go-simd/unicode/utf8"
+
+	"github.com/akito0107/querydigest/internal/dart"
 )
 
 type SlowQueryScanner struct {
@@ -132,24 +134,17 @@ func (s *SlowQueryScanner) nextLine() error {
 	return nil
 }
 
-var supportedSQLs = []string{"SELECT", "INSERT", "ALTER", "WITH", "DELETE", "UPDATE"}
+var supportedSQLs = dart.Must(dart.Build([]string{
+	"SELECT",
+	"INSERT",
+	"UPDATE",
+	"DELETE",
+	"WITH",
+	"ALTER",
+}))
 
-func parsableQueryLine(str []byte) bool {
-	for i := 0; i < len(str); i++ {
-		if 'a' <= str[i] && str[i] <= 'z' {
-			str[i] -= 'a' - 'A'
-		}
-	}
-
-	q := *(*string)(unsafe.Pointer(&str))
-
-	for _, s := range supportedSQLs {
-		if strings.HasPrefix(q, s) {
-			return true
-		}
-	}
-
-	return false
+func parsableQueryLine(b []byte) bool {
+	return supportedSQLs.Match(b)
 }
 
 type QueryTime struct {
