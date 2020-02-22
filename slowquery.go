@@ -24,7 +24,7 @@ type SlowQueryScanner struct {
 	bufPool     sync.Pool
 }
 
-const size = 1024 * 1024
+const size = 32 * 1024 * 1024
 
 func NewSlowQueryScanner(r io.Reader) *SlowQueryScanner {
 	return &SlowQueryScanner{
