@@ -24,12 +24,12 @@ type SlowQueryScanner struct {
 	queryTimeBuf *bytes.Buffer
 }
 
-const size = 32 * 1024 * 1024
+const ioBufSize = 128 * 1024 * 1024
 
 func NewSlowQueryScanner(r io.Reader) *SlowQueryScanner {
 	return &SlowQueryScanner{
-		reader:       bufio.NewReaderSize(r, size),
-		queryBuf:     bytes.NewBuffer(make([]byte, size)),
+		reader:       bufio.NewReaderSize(r, ioBufSize),
+		queryBuf:     &bytes.Buffer{},
 		queryTimeBuf: &bytes.Buffer{},
 	}
 }
