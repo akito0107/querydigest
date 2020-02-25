@@ -48,10 +48,14 @@ func analyzeSlowQuery(r io.Reader, concurrency int) ([]*SlowQuerySummary, float6
 			for s := range parsequeue {
 				res, err := ReplaceWithZeroValue(s.RawQuery)
 				if err != nil {
-					return
+					b := s.RawQuery
+					if len(b) > 60 {
+						b = b[:60]
+					}
+					log.Print("replace failed: ", string(b))
+					continue
 				}
 				s.ParsedQuery = res
-
 				summarizer.Collect(s)
 			}
 		}()
