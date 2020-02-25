@@ -3,7 +3,6 @@ package querydigest
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/akito0107/xsqlparser"
@@ -24,7 +23,6 @@ func ReplaceWithZeroValue(src []byte) (string, error) {
 
 	stmt, err := parser.ParseStatement()
 	if err != nil {
-		log.Printf("Parse failed: invalid sql: %s \n", src)
 		return "", err
 	}
 
