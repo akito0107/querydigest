@@ -32,12 +32,36 @@ func print(w io.Writer, summaries []*SlowQuerySummary, totalTime float64) {
 }
 
 func analyzeSlowQuery(r io.Reader, concurrency int) ([]*SlowQuerySummary, float64, error) {
-	parsequeue := make(chan *SlowQueryInfo, 500)
-
-	go parseRawFile(r, parsequeue)
-
+	if concurrency > 1 {
+		return analyzeSlowQueryParallel(r, concurrency)
+	}
 	summarizer := NewSummarizer()
+	slowQueryScanner := NewSlowQueryScanner(r)
+	for slowQueryScanner.Next() {
+		s := slowQueryScanner.SlowQueryInfo()
+		res, err := ReplaceWithZeroValue(s.RawQuery)
+		if err != nil {
+			b := s.RawQuery
+			if len(b) > 60 {
+				b = b[:60]
+			}
+			log.Print("replace failed: ", string(b))
+			continue
+		}
+		s.ParsedQuery = res
+		summarizer.Collect(s)
+	}
+	if err := slowQueryScanner.Err(); err != nil {
+		return nil, 0, err
+	}
+	qs := summarizer.Summarize()
+	return qs, summarizer.TotalQueryTime(), nil
+}
 
+func analyzeSlowQueryParallel(r io.Reader, concurrency int) ([]*SlowQuerySummary, float64, error) {
+	parsequeue := make(chan *SlowQueryInfo, 500)
+	go parseRawFile(r, parsequeue)
+	summarizer := NewSummarizer()
 	var wg sync.WaitGroup
 
 	for i := 0; i < concurrency; i++ {
