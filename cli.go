@@ -11,7 +11,7 @@ func Run(w io.Writer, src io.Reader, previewSize, concurrency int) {
 
 	results, total, err := analyzeSlowQuery(src, concurrency)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("analyzeSlowQuery:", err)
 	}
 
 	if previewSize != 0 && previewSize <= len(results) {
@@ -98,8 +98,7 @@ func parseRawFile(r io.Reader, parsequeue chan *SlowQueryInfo) {
 		parsequeue <- slowqueryscanner.SlowQueryInfo().clone()
 	}
 	if err := slowqueryscanner.Err(); err != nil {
-		log.Fatal(err)
+		log.Fatal("slowQueryScanner:", err)
 	}
-
 	close(parsequeue)
 }
