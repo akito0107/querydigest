@@ -17,7 +17,7 @@ type SlowQuerySummary struct {
 	TotalQueryCount    int
 	TotalRowsSent      int
 	TotalRowsExamined  int
-	RawInfo            []*SlowQueryInfo
+	QueryTimes         []QueryTime
 	stats              *slowQueryStats
 	queryTimeHistogram Histogram
 }
@@ -39,16 +39,16 @@ func (s *SlowQuerySummary) String() string {
 }
 
 func (s *SlowQuerySummary) ComputeStats() {
-	queryTimes := make([]float64, 0, len(s.RawInfo))
-	lockTimes := make([]float64, 0, len(s.RawInfo))
-	rowsSents := make([]float64, 0, len(s.RawInfo))
-	rowsExamines := make([]float64, 0, len(s.RawInfo))
+	queryTimes := make([]float64, 0, len(s.QueryTimes))
+	lockTimes := make([]float64, 0, len(s.QueryTimes))
+	rowsSents := make([]float64, 0, len(s.QueryTimes))
+	rowsExamines := make([]float64, 0, len(s.QueryTimes))
 
-	for _, r := range s.RawInfo {
-		queryTimes = append(queryTimes, r.QueryTime.QueryTime)
-		lockTimes = append(lockTimes, r.QueryTime.LockTime)
-		rowsSents = append(rowsSents, float64(r.QueryTime.RowsSent))
-		rowsExamines = append(rowsExamines, float64(r.QueryTime.RowsExamined))
+	for _, r := range s.QueryTimes {
+		queryTimes = append(queryTimes, r.QueryTime)
+		lockTimes = append(lockTimes, r.LockTime)
+		rowsSents = append(rowsSents, float64(r.RowsSent))
+		rowsExamines = append(rowsExamines, float64(r.RowsExamined))
 	}
 
 	s.stats = &slowQueryStats{
@@ -60,9 +60,9 @@ func (s *SlowQuerySummary) ComputeStats() {
 }
 
 func (s *SlowQuerySummary) ComputeHistogram() {
-	src := make([]float64, 0, len(s.RawInfo))
-	for _, r := range s.RawInfo {
-		qus := r.QueryTime.QueryTime * 1000 * 1000
+	src := make([]float64, 0, len(s.QueryTimes))
+	for _, r := range s.QueryTimes {
+		qus := r.QueryTime * 1000 * 1000
 		if qus > 1 {
 			src = append(src, qus)
 		}
@@ -80,7 +80,7 @@ func (s *SlowQuerySummary) appendQueryTime(info *SlowQueryInfo) {
 	s.TotalTime += info.QueryTime.QueryTime
 	s.TotalRowsSent += info.QueryTime.RowsSent
 	s.TotalRowsExamined += info.QueryTime.RowsExamined
-	s.RawInfo = append(s.RawInfo, info)
+	s.QueryTimes = append(s.QueryTimes, info.QueryTime)
 
 	s.TotalQueryCount++
 }
