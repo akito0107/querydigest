@@ -3,6 +3,8 @@ package querydigest
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"sync"
 	"time"
 
 	"github.com/akito0107/xsqlparser"
@@ -12,12 +14,52 @@ import (
 	"github.com/akito0107/xsqlparser/sqltoken"
 )
 
+var tokensPool = sync.Pool{
+	New: func() interface{} {
+		return make([]*sqltoken.Token, 0, 2048)
+	},
+}
+
+var tokenizerPool = sync.Pool{
+	New: func() interface{} {
+		return sqltoken.NewTokenizerWithOptions(nil, sqltoken.Dialect(&dialect.MySQLDialect{}), sqltoken.DisableParseComment())
+	},
+}
+
 func ReplaceWithZeroValue(src []byte) (string, error) {
-	tokenizer := sqltoken.NewTokenizerWithOptions(bytes.NewBuffer(src), sqltoken.Dialect(&dialect.MySQLDialect{}), sqltoken.DisableParseComment())
-	tokset, err := tokenizer.Tokenize()
-	if err != nil {
-		return "", fmt.Errorf("tokenize failed src: %s : %w", string(src), err)
+	tokenizer := tokenizerPool.Get().(*sqltoken.Tokenizer)
+	tokenizer.Line = 1
+	tokenizer.Col = 1
+	tokenizer.Scanner.Init(bytes.NewReader(src))
+	defer tokenizerPool.Put(tokenizer)
+
+	tokset := tokensPool.Get().([]*sqltoken.Token)
+	tokset = tokset[:0]
+	defer func() {
+		tokensPool.Put(tokset)
+	}()
+
+	for {
+		var tok *sqltoken.Token
+		if len(tokset) < cap(tokset) {
+			tok = tokset[:len(tokset)+1][len(tokset)]
+		}
+		if tok == nil {
+			tok = &sqltoken.Token{}
+		}
+		t, err := tokenizer.Scan(tok)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", fmt.Errorf("tokenize failed src: %s : %w", string(src), err)
+		}
+		if t == nil {
+			continue
+		}
+		tokset = append(tokset, tok)
 	}
+
 	parser := xsqlparser.NewParserWithOptions()
 	parser.SetTokens(tokset)
 
@@ -51,6 +93,5 @@ func ReplaceWithZeroValue(src []byte) (string, error) {
 		}
 		return true
 	}, nil)
-
 	return res.ToSQLString(), nil
 }
