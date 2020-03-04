@@ -16,7 +16,7 @@ func BenchmarkRun(b *testing.B) {
 			b.Fatal(err)
 		}
 
-		Run(ioutil.Discard, f, 0, runtime.NumCPU())
+		Run(ioutil.Discard, f, 0, runtime.GOMAXPROCS(0))
 
 		f.Close()
 	}
