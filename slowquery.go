@@ -175,7 +175,7 @@ func parseHeader(str string) []string {
 			break
 		}
 	}
-	quickTime := str[:i]
+	queryTime := str[:i]
 	str = str[i+13:]
 	for i = 0; i < len(str); i++ {
 		if str[i] == ' ' {
@@ -190,9 +190,9 @@ func parseHeader(str string) []string {
 		}
 	}
 	rowsSent := str[:i]
-	rowsExamined :=str[i+17:]
+	rowsExamined := str[i+17:]
 
-	return []string{quickTime, lockTime, rowsSent, rowsExamined}
+	return []string{queryTime, lockTime, rowsSent, rowsExamined}
 }
 
 func parseQueryTime(str string) *QueryTime {
