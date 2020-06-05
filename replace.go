@@ -2,17 +2,32 @@ package querydigest
 
 import (
 	"bytes"
+	"fmt"
+	"io"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/akito0107/xsqlparser"
+	"github.com/akito0107/xsqlparser/dialect"
 	"github.com/akito0107/xsqlparser/sqlast"
 	"github.com/akito0107/xsqlparser/sqlastutil"
-
-	"github.com/akito0107/querydigest/dialect"
+	"github.com/akito0107/xsqlparser/sqltoken"
 )
 
-func ReplaceWithZeroValue(src string) (string, error) {
+var tokensPool = sync.Pool{
+	New: func() interface{} {
+		return make([]*sqltoken.Token, 0, 2048)
+	},
+}
+
+var tokenizerPool = sync.Pool{
+	New: func() interface{} {
+		return sqltoken.NewTokenizerWithOptions(nil, sqltoken.Dialect(&dialect.MySQLDialect{}), sqltoken.DisableParseComment())
+	},
+}
+
+func ReplaceWithZeroValue(src []byte) (string, error) {
 	// FIXME evil work around
 	defer func() {
 		if err := recover(); err != nil {
@@ -21,10 +36,42 @@ func ReplaceWithZeroValue(src string) (string, error) {
 			return
 		}
 	}()
-	parser, err := xsqlparser.NewParser(bytes.NewBufferString(src), &dialect.MySQLDialect{})
-	if err != nil {
-		return "", err
+	tokenizer := tokenizerPool.Get().(*sqltoken.Tokenizer)
+	tokenizer.Line = 1
+	tokenizer.Col = 1
+	tokenizer.Scanner.Init(bytes.NewReader(src))
+	defer tokenizerPool.Put(tokenizer)
+
+	tokset := tokensPool.Get().([]*sqltoken.Token)
+	tokset = tokset[:0]
+	defer func() {
+		tokensPool.Put(tokset)
+	}()
+
+	for {
+		var tok *sqltoken.Token
+		if len(tokset) < cap(tokset) {
+			tok = tokset[:len(tokset)+1][len(tokset)]
+		}
+		if tok == nil {
+			tok = &sqltoken.Token{}
+		}
+		t, err := tokenizer.Scan(tok)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", fmt.Errorf("tokenize failed src: %s : %w", string(src), err)
+		}
+		if t == nil {
+			continue
+		}
+		tokset = append(tokset, tok)
 	}
+
+	parser := xsqlparser.NewParserWithOptions()
+	parser.SetTokens(tokset)
+
 	stmt, err := parser.ParseStatement()
 	if err != nil {
 		log.Printf("Parse failed: invalied sql: %s \n", src[:50])
@@ -56,6 +103,5 @@ func ReplaceWithZeroValue(src string) (string, error) {
 		}
 		return true
 	}, nil)
-
 	return res.ToSQLString(), nil
 }

@@ -11,7 +11,7 @@ func Run(w io.Writer, src io.Reader, previewSize, concurrency int) {
 
 	results, total, err := analyzeSlowQuery(src, concurrency)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("analyzeSlowQuery:", err)
 	}
 
 	if previewSize != 0 && previewSize <= len(results) {
@@ -20,7 +20,6 @@ func Run(w io.Writer, src io.Reader, previewSize, concurrency int) {
 
 	print(w, results, total)
 }
-
 
 func print(w io.Writer, summaries []*SlowQuerySummary, totalTime float64) {
 	for i, s := range summaries {
@@ -33,24 +32,54 @@ func print(w io.Writer, summaries []*SlowQuerySummary, totalTime float64) {
 }
 
 func analyzeSlowQuery(r io.Reader, concurrency int) ([]*SlowQuerySummary, float64, error) {
-	parsequeue := make(chan *SlowQueryInfo, 500)
-
-	go parseRawFile(r, parsequeue)
-
+	if concurrency > 1 {
+		return analyzeSlowQueryParallel(r, concurrency)
+	}
 	summarizer := NewSummarizer()
+	slowQueryScanner := NewSlowQueryScanner(r)
+	for slowQueryScanner.Next() {
+		s := slowQueryScanner.SlowQueryInfo()
+		res, err := ReplaceWithZeroValue(s.RawQuery)
+		if err != nil {
+			b := s.RawQuery
+			if len(b) > 60 {
+				b = b[:60]
+			}
+			log.Print("replace failed: ", string(b))
+			continue
+		}
+		s.ParsedQuery = res
+		summarizer.Collect(s)
+	}
+	if err := slowQueryScanner.Err(); err != nil {
+		return nil, 0, err
+	}
+	qs := summarizer.Summarize()
+	return qs, summarizer.TotalQueryTime(), nil
+}
 
+func analyzeSlowQueryParallel(r io.Reader, concurrency int) ([]*SlowQuerySummary, float64, error) {
+	parsequeue := make(chan *SlowQueryInfo, 500)
+	go parseRawFile(r, parsequeue)
+	summarizer := NewSummarizer()
 	var wg sync.WaitGroup
+
 	for i := 0; i < concurrency; i++ {
+
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for s := range parsequeue {
 				res, err := ReplaceWithZeroValue(s.RawQuery)
 				if err != nil {
+					b := s.RawQuery
+					if len(b) > 60 {
+						b = b[:60]
+					}
+					log.Print("replace failed: ", string(b))
 					continue
 				}
 				s.ParsedQuery = res
-
 				summarizer.Collect(s)
 			}
 		}()
@@ -66,12 +95,10 @@ func parseRawFile(r io.Reader, parsequeue chan *SlowQueryInfo) {
 	slowqueryscanner := NewSlowQueryScanner(r)
 
 	for slowqueryscanner.Next() {
-		parsequeue <- slowqueryscanner.SlowQueryInfo()
+		parsequeue <- slowqueryscanner.SlowQueryInfo().clone()
 	}
 	if err := slowqueryscanner.Err(); err != nil {
-		log.Fatal(err)
+		log.Fatal("slowQueryScanner:", err)
 	}
-
 	close(parsequeue)
 }
-
